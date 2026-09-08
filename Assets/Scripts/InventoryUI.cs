@@ -3,10 +3,12 @@ using UnityEngine;
 public class InventoryUI : MonoBehaviour
 {
     [SerializeField] private Inventory inventory;
+    [SerializeField] private InventorySelector selector;
     [SerializeField] private int slotCount = 5;
     [SerializeField] private Vector2 slotSize = new Vector2(80f, 80f);
     [SerializeField] private Color emptyColor = new Color(1f, 1f, 1f, 0.25f);
     [SerializeField] private Color filledColor = new Color(1f, 1f, 1f, 0.6f);
+    [SerializeField] private Color selectedColor = new Color(1f, 0.9f, 0.2f, 0.9f);
 
     private UnityEngine.UI.Image[] slotBackgrounds;
     private UnityEngine.UI.Image[] slotIcons;
@@ -64,8 +66,12 @@ public class InventoryUI : MonoBehaviour
         if (inventory != null)
         {
             inventory.OnInventoryChanged += Refresh;
-            Refresh();
         }
+        if (selector != null)
+        {
+            selector.OnSelectionChanged += Refresh;
+        }
+        Refresh();
     }
 
     void OnDisable()
@@ -74,19 +80,26 @@ public class InventoryUI : MonoBehaviour
         {
             inventory.OnInventoryChanged -= Refresh;
         }
+        if (selector != null)
+        {
+            selector.OnSelectionChanged -= Refresh;
+        }
     }
 
     private void Refresh()
     {
-        if (slotIcons == null) return;
+        if (slotIcons == null || inventory == null) return;
 
         var entries = inventory.Items;
+        int selectedIndex = selector != null ? selector.SelectedIndex : -1;
+
         for (int i = 0; i < slotIcons.Length; i++)
         {
             bool filled = i < entries.Count;
             slotIcons[i].sprite = filled ? entries[i].icon : null;
             slotIcons[i].enabled = filled;
-            slotBackgrounds[i].color = filled ? filledColor : emptyColor;
+
+            slotBackgrounds[i].color = i == selectedIndex ? selectedColor : (filled ? filledColor : emptyColor);
         }
     }
 }

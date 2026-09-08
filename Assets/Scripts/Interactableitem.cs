@@ -7,9 +7,8 @@ public class InteractableItem : MonoBehaviour
 
     public void Collect(Inventory inventory)
     {
-        if (inventory.AddItem(itemName, icon))
+        if (inventory.AddItem(itemName, icon, gameObject))
         {
-            // Swap for Destroy(gameObject) once items shouldn't ever reappear.
             gameObject.SetActive(false);
         }
     }

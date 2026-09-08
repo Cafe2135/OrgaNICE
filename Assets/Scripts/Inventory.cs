@@ -10,6 +10,7 @@ public class Inventory : MonoBehaviour
     {
         public string itemName;
         public Sprite icon;
+        public GameObject sourceObject;
     }
 
     private readonly List<Entry> items = new List<Entry>();
@@ -18,7 +19,7 @@ public class Inventory : MonoBehaviour
     public int MaxSlots => maxSlots;
     public event Action OnInventoryChanged;
 
-    public bool AddItem(string itemName, Sprite icon)
+    public bool AddItem(string itemName, Sprite icon, GameObject sourceObject)
     {
         if (items.Count >= maxSlots)
         {
@@ -26,8 +27,32 @@ public class Inventory : MonoBehaviour
             return false;
         }
 
-        items.Add(new Entry { itemName = itemName, icon = icon });
+        items.Add(new Entry { itemName = itemName, icon = icon, sourceObject = sourceObject });
         Debug.Log($"Picked up: {itemName} ({items.Count}/{maxSlots})");
+        OnInventoryChanged?.Invoke();
+        return true;
+    }
+
+    public bool DropAt(int index, Vector3 position)
+    {
+        if (index < 0 || index >= items.Count) return false;
+
+        Entry entry = items[index];
+        items.RemoveAt(index);
+
+        if (entry.sourceObject != null)
+        {
+            entry.sourceObject.transform.position = position;
+            entry.sourceObject.SetActive(true);
+
+            if (entry.sourceObject.TryGetComponent(out Rigidbody rb))
+            {
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+            }
+        }
+
+        Debug.Log($"Dropped: {entry.itemName} ({items.Count}/{maxSlots})");
         OnInventoryChanged?.Invoke();
         return true;
     }
