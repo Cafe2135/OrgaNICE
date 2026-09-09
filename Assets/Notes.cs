@@ -9,5 +9,11 @@ F - Pick up Item
 1/2/3/4/5 - Cycle inventory
 G - Drop Item
 
+
+Box Assignment
+Green - Required Item (+points)
+Blue - Neutral Item (+-Points)
+Red - Trash (-Points)
+
 */
 

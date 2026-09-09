@@ -10,6 +10,7 @@ public class Inventory : MonoBehaviour
     {
         public string itemName;
         public Sprite icon;
+        public ItemTag tag;
         public GameObject sourceObject;
     }
 
@@ -19,7 +20,7 @@ public class Inventory : MonoBehaviour
     public int MaxSlots => maxSlots;
     public event Action OnInventoryChanged;
 
-    public bool AddItem(string itemName, Sprite icon, GameObject sourceObject)
+    public bool AddItem(string itemName, Sprite icon, ItemTag tag, GameObject sourceObject)
     {
         if (items.Count >= maxSlots)
         {
@@ -27,8 +28,8 @@ public class Inventory : MonoBehaviour
             return false;
         }
 
-        items.Add(new Entry { itemName = itemName, icon = icon, sourceObject = sourceObject });
-        Debug.Log($"Picked up: {itemName} ({items.Count}/{maxSlots})");
+        items.Add(new Entry { itemName = itemName, icon = icon, tag = tag, sourceObject = sourceObject });
+        Debug.Log($"Picked up: {itemName} [{tag}] ({items.Count}/{maxSlots})");
         OnInventoryChanged?.Invoke();
         return true;
     }
