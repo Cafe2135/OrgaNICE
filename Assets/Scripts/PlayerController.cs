@@ -29,8 +29,7 @@ public class PlayerController : MonoBehaviour
     {
         controller = GetComponent<CharacterController>();
 
-        // Lock the cursor for mouse-look. Once a pause/settings menu exists,
-        // move this to whatever manages UI state so it can unlock on pause.
+        // Lock the cursor for mouse-look. PauseMenu takes over unlocking/relocking it on pause.
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
@@ -44,6 +43,8 @@ public class PlayerController : MonoBehaviour
 
     private void HandleLook()
     {
+        if (PauseMenu.IsPaused) return;
+
         float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity;
         float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity;
 

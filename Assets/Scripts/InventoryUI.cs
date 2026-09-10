@@ -6,6 +6,8 @@ public class InventoryUI : MonoBehaviour
     [SerializeField] private InventorySelector selector;
     [SerializeField] private int slotCount = 5;
     [SerializeField] private Vector2 slotSize = new Vector2(80f, 80f);
+    [SerializeField] private float slotSpacing = 10f;
+    [SerializeField] private float bottomOffset = 20f;
     [SerializeField] private Color emptyColor = new Color(1f, 1f, 1f, 0.25f);
     [SerializeField] private Color filledColor = new Color(1f, 1f, 1f, 0.6f);
     [SerializeField] private Color selectedColor = new Color(1f, 0.9f, 0.2f, 0.9f);
@@ -21,12 +23,22 @@ public class InventoryUI : MonoBehaviour
 
     private void SetupLayout()
     {
+
+        var rect = GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0.5f, 0f);
+        rect.anchorMax = new Vector2(0.5f, 0f);
+        rect.pivot = new Vector2(0.5f, 0f);
+
+        float totalWidth = slotCount * slotSize.x + Mathf.Max(0, slotCount - 1) * slotSpacing;
+        rect.sizeDelta = new Vector2(totalWidth, slotSize.y);
+        rect.anchoredPosition = new Vector2(0f, bottomOffset);
+
         var layout = GetComponent<UnityEngine.UI.HorizontalLayoutGroup>();
         if (layout == null)
         {
             layout = gameObject.AddComponent<UnityEngine.UI.HorizontalLayoutGroup>();
         }
-        layout.spacing = 10f;
+        layout.spacing = slotSpacing;
         layout.childAlignment = TextAnchor.MiddleCenter;
         layout.childForceExpandWidth = false;
         layout.childForceExpandHeight = false;
