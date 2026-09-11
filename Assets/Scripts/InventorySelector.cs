@@ -3,8 +3,6 @@ using UnityEngine;
 
 public class InventorySelector : MonoBehaviour
 {
-    [SerializeField] private float dropDistance = 1.5f;
-
     private Inventory inventory;
     private PlayerInteraction playerInteraction;
 
@@ -21,7 +19,6 @@ public class InventorySelector : MonoBehaviour
     {
         bool holdingObject = playerInteraction != null && playerInteraction.IsHolding;
 
-        // Only handle hotbar switching and slot dropping when NOT holding an item in front of camera
         if (!holdingObject)
         {
             for (int i = 0; i < 5; i++)
@@ -36,8 +33,16 @@ public class InventorySelector : MonoBehaviour
 
             if (Input.GetKeyDown(KeyCode.G) && SelectedIndex >= 0 && inventory != null)
             {
-                Vector3 dropPosition = transform.position + transform.forward * dropDistance + Vector3.up * 0.5f;
-                inventory.DropAt(SelectedIndex, dropPosition);
+                if (SelectedIndex < inventory.Items.Count)
+                {
+                    GameObject itemObj = inventory.Items[SelectedIndex].sourceObject;
+                    
+                    Vector3 safeDropPos = playerInteraction != null 
+                        ? playerInteraction.CalculateCrosshairDropPosition(itemObj) 
+                        : transform.position + transform.forward * 1.5f;
+
+                    inventory.DropAt(SelectedIndex, safeDropPos);
+                }
             }
         }
     }

@@ -2,15 +2,16 @@ using UnityEngine;
 
 public class PlayerInteraction : MonoBehaviour
 {
-    [Header("References")]
     [SerializeField] private Camera playerCamera;
     [SerializeField] private Inventory inventory;
     [SerializeField] private InventorySelector inventorySelector;
 
-    [Header("Inventory Pull-Out & Float")]
     [SerializeField] private float inspectDistance = 1.2f;
     [SerializeField] private float followSpeed = 15f;
     [SerializeField] private float mouseRotateSensitivity = 4f;
+
+    [SerializeField] private float maxDropRange = 3.5f;
+    [SerializeField] private LayerMask dropSurfaceLayers = ~0;
 
     private Rigidbody heldBody;
     private bool isInspecting = false;
@@ -28,7 +29,6 @@ public class PlayerInteraction : MonoBehaviour
 
     void Update()
     {
-        // Toggle 'E': Pull out item when not holding, put back into inventory when holding
         if (Input.GetKeyDown(KeyCode.E))
         {
             if (isInspecting)
@@ -41,10 +41,9 @@ public class PlayerInteraction : MonoBehaviour
             }
         }
 
-        // Press 'G' to drop currently held item into the world
         if (isInspecting && Input.GetKeyDown(KeyCode.G))
         {
-            Release();
+            ReleaseAtCrosshair();
         }
 
         HandleInspectRotation();
@@ -60,47 +59,31 @@ public class PlayerInteraction : MonoBehaviour
 
     private void TryPullOutFromInventory()
     {
-        if (inventory == null)
-        {
-            Debug.LogError("PlayerInteraction: Inventory reference is missing!");
-            return;
-        }
-
-        if (inventory.Items.Count == 0)
-        {
-            Debug.Log("Inventory is empty — nothing to pull out.");
-            return;
-        }
+        if (inventory == null || inventory.Items.Count == 0) return;
 
         int targetSlot = (inventorySelector != null && inventorySelector.SelectedIndex >= 0) 
             ? inventorySelector.SelectedIndex 
             : 0;
 
-        if (targetSlot >= inventory.Items.Count)
-        {
-            Debug.Log($"No item in inventory slot {targetSlot + 1}. Select a valid slot.");
-            return;
-        }
+        if (targetSlot >= inventory.Items.Count) return;
 
         GameObject obj = inventory.RemoveItemAt(targetSlot);
         if (obj != null)
         {
-            if (playerCamera == null)
+            if (playerCamera == null) return;
+
+            Vector3 targetSpawnPos = playerCamera.transform.position + playerCamera.transform.forward * inspectDistance;
+            if (Physics.Raycast(playerCamera.transform.position, playerCamera.transform.forward, out RaycastHit hit, inspectDistance, dropSurfaceLayers, QueryTriggerInteraction.Ignore))
             {
-                Debug.LogError("PlayerInteraction: Player Camera is not assigned!");
-                return;
+                targetSpawnPos = hit.point - playerCamera.transform.forward * 0.2f;
             }
 
-            obj.transform.position = playerCamera.transform.position + playerCamera.transform.forward * inspectDistance;
+            obj.transform.position = targetSpawnPos;
             obj.SetActive(true);
 
             if (obj.TryGetComponent(out Rigidbody rb))
             {
                 StartHolding(rb);
-            }
-            else
-            {
-                Debug.LogWarning($"Pulled out {obj.name}, but it is missing a Rigidbody component!");
             }
         }
     }
@@ -113,10 +96,6 @@ public class PlayerInteraction : MonoBehaviour
         {
             Release();
             item.Collect(inventory);
-        }
-        else
-        {
-            Debug.LogWarning($"Item {heldBody.name} is missing InteractableItem script — cannot return to inventory!");
         }
     }
 
@@ -143,6 +122,52 @@ public class PlayerInteraction : MonoBehaviour
         heldBody = null;
         isInspecting = false;
         LockCameraLook = false;
+    }
+
+    private void ReleaseAtCrosshair()
+    {
+        if (heldBody == null) return;
+
+        Vector3 dropPos = CalculateCrosshairDropPosition(heldBody.gameObject);
+
+        heldBody.position = dropPos;
+        heldBody.useGravity = true;
+        heldBody.linearVelocity = Vector3.zero;
+        heldBody.angularVelocity = Vector3.zero;
+
+        heldBody = null;
+        isInspecting = false;
+        LockCameraLook = false;
+    }
+
+    public Vector3 CalculateCrosshairDropPosition(GameObject itemObj)
+    {
+        Collider[] colliders = itemObj.GetComponentsInChildren<Collider>();
+        foreach (var c in colliders) c.enabled = false;
+
+        float itemHalfHeight = 0.2f;
+        if (itemObj.TryGetComponent(out Collider col))
+        {
+            itemHalfHeight = col.bounds.extents.y;
+        }
+
+        Vector3 rayOrigin = playerCamera.transform.position + playerCamera.transform.forward * 0.4f;
+        Ray ray = new Ray(rayOrigin, playerCamera.transform.forward);
+        Vector3 targetPos;
+
+        if (Physics.Raycast(ray, out RaycastHit hit, maxDropRange, dropSurfaceLayers, QueryTriggerInteraction.Ignore))
+        {
+            Vector3 normalOffset = Vector3.Dot(hit.normal, Vector3.up) > 0.3f ? Vector3.up : hit.normal;
+            targetPos = hit.point + normalOffset * (itemHalfHeight + 0.02f);
+        }
+        else
+        {
+            targetPos = rayOrigin + playerCamera.transform.forward * maxDropRange;
+        }
+
+        foreach (var c in colliders) c.enabled = true;
+
+        return targetPos;
     }
 
     private void MoveHeldObject()

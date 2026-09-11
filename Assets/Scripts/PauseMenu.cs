@@ -1,19 +1,20 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.EventSystems;
 using TMPro;
 
 public class PauseMenu : MonoBehaviour
 {
     [SerializeField] private KeyCode pauseKey = KeyCode.Escape;
+    [SerializeField] private string mainMenuSceneName = "MainMenuScene";
 
-    // Other scripts (PlayerController's look, etc.) can check this to freeze
-    // themselves properly instead of relying only on Time.timeScale.
     public static bool IsPaused { get; private set; }
 
     private GameObject panel;
 
     void Awake()
     {
+        EnsureEventSystem();
         BuildUI();
         panel.SetActive(false);
     }
@@ -24,6 +25,15 @@ public class PauseMenu : MonoBehaviour
         {
             if (IsPaused) Resume();
             else Pause();
+        }
+    }
+
+    private void EnsureEventSystem()
+    {
+        if (EventSystem.current == null)
+        {
+            var eventSystemGo = new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
+            DontDestroyOnLoad(eventSystemGo);
         }
     }
 
@@ -52,13 +62,12 @@ public class PauseMenu : MonoBehaviour
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 
-    private void ExitGame()
+    private void ExitToMainMenu()
     {
-#if UNITY_EDITOR
-        UnityEditor.EditorApplication.isPlaying = false;
-#else
-        Application.Quit();
-#endif
+        Debug.Log("Exiting to Main Menu scene: " + mainMenuSceneName);
+        IsPaused = false;
+        Time.timeScale = 1f;
+        SceneManager.LoadScene(mainMenuSceneName);
     }
 
     private void BuildUI()
@@ -70,13 +79,16 @@ public class PauseMenu : MonoBehaviour
         panelRect.anchorMax = Vector2.one;
         panelRect.offsetMin = Vector2.zero;
         panelRect.offsetMax = Vector2.zero;
-        panel.GetComponent<UnityEngine.UI.Image>().color = new Color(0f, 0f, 0f, 0.75f);
+        
+        var panelImg = panel.GetComponent<UnityEngine.UI.Image>();
+        panelImg.color = new Color(0f, 0f, 0f, 0.75f);
+        panelImg.raycastTarget = true;
 
         CreateLabel(panel.transform, "PAUSED", new Vector2(0f, 140f), 42);
 
         CreateButton(panel.transform, "Resume", new Vector2(0f, 40f), Resume);
         CreateButton(panel.transform, "Restart Level", new Vector2(0f, -20f), RestartLevel);
-        CreateButton(panel.transform, "Exit", new Vector2(0f, -80f), ExitGame);
+        CreateButton(panel.transform, "Exit to Main Menu", new Vector2(0f, -80f), ExitToMainMenu);
     }
 
     private void CreateLabel(Transform parent, string text, Vector2 anchoredPosition, int fontSize)
@@ -95,6 +107,7 @@ public class PauseMenu : MonoBehaviour
         label.fontSize = fontSize;
         label.alignment = TextAlignmentOptions.Center;
         label.color = Color.white;
+        label.raycastTarget = false;
     }
 
     private void CreateButton(Transform parent, string label, Vector2 anchoredPosition, UnityEngine.Events.UnityAction onClick)
@@ -106,13 +119,14 @@ public class PauseMenu : MonoBehaviour
         rect.anchorMax = new Vector2(0.5f, 0.5f);
         rect.pivot = new Vector2(0.5f, 0.5f);
         rect.anchoredPosition = anchoredPosition;
-        rect.sizeDelta = new Vector2(220f, 50f);
+        rect.sizeDelta = new Vector2(240f, 50f);
 
         var image = go.GetComponent<UnityEngine.UI.Image>();
         image.color = new Color(1f, 1f, 1f, 0.9f);
+        image.raycastTarget = true;
 
         var button = go.GetComponent<UnityEngine.UI.Button>();
-        button.targetGraphic = image; // needed for click/hover feedback since this is built in code, not the editor
+        button.targetGraphic = image;
         button.onClick.AddListener(onClick);
 
         var textGo = new GameObject("Label", typeof(RectTransform));
@@ -125,8 +139,9 @@ public class PauseMenu : MonoBehaviour
 
         var tmp = textGo.AddComponent<TextMeshProUGUI>();
         tmp.text = label;
-        tmp.fontSize = 24;
+        tmp.fontSize = 22;
         tmp.alignment = TextAlignmentOptions.Center;
         tmp.color = Color.black;
+        tmp.raycastTarget = false;
     }
 }

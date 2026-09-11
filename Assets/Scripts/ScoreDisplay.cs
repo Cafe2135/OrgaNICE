@@ -17,7 +17,7 @@ public class ScoreDisplay : MonoBehaviour
         rect.anchorMax = new Vector2(1f, 1f);
         rect.pivot = new Vector2(1f, 1f);
         rect.anchoredPosition = new Vector2(-20f, -20f);
-        rect.sizeDelta = new Vector2(160f, 50f);
+        rect.sizeDelta = new Vector2(200f, 50f);
 
         label = gameObject.AddComponent<TextMeshProUGUI>();
         label.fontSize = fontSize;
@@ -40,6 +40,15 @@ public class ScoreDisplay : MonoBehaviour
 
     private void Refresh()
     {
-        label.text = score.ToString().PadLeft(digits, '0');
+        if (label == null) return;
+
+        if (score < 0)
+        {
+            label.text = "-" + Mathf.Abs(score).ToString().PadLeft(digits - 1, '0');
+        }
+        else
+        {
+            label.text = score.ToString().PadLeft(digits, '0');
+        }
     }
 }
