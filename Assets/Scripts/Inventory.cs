@@ -35,6 +35,20 @@ public class Inventory : MonoBehaviour
         OnItemPickedUp?.Invoke(description);
         return true;
     }
+
+    // Removes item entry from slot and returns the source GameObject for pulling out
+    public GameObject RemoveItemAt(int index)
+    {
+        if (index < 0 || index >= items.Count) return null;
+
+        Entry entry = items[index];
+        items.RemoveAt(index);
+
+        Debug.Log($"Pulled out: {entry.itemName} from slot {index + 1}");
+        OnInventoryChanged?.Invoke();
+        return entry.sourceObject;
+    }
+
     public bool DropAt(int index, Vector3 position)
     {
         if (index < 0 || index >= items.Count) return false;

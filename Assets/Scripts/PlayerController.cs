@@ -29,7 +29,6 @@ public class PlayerController : MonoBehaviour
     {
         controller = GetComponent<CharacterController>();
 
-        // Lock the cursor for mouse-look. PauseMenu takes over unlocking/relocking it on pause.
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
@@ -43,12 +42,12 @@ public class PlayerController : MonoBehaviour
 
     private void HandleLook()
     {
-        if (PauseMenu.IsPaused) return;
+        // Freeze camera look when game is paused OR when player is rotating an inspected item
+        if (PauseMenu.IsPaused || PlayerInteraction.LockCameraLook) return;
 
         float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity;
         float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity;
 
-        // Yaw rotates the whole body; pitch only rotates the camera pivot.
         transform.Rotate(Vector3.up * mouseX);
 
         verticalLookRotation -= mouseY;
@@ -83,7 +82,7 @@ public class PlayerController : MonoBehaviour
 
         if (controller.isGrounded && velocity.y < 0f)
         {
-            velocity.y = -2f; // small constant downward force keeps the controller grounded on slopes
+            velocity.y = -2f;
         }
 
         velocity.y += gravity * Time.deltaTime;

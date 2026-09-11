@@ -133,6 +133,7 @@ GameObject:
   - component: {fileID: 77547954}
   - component: {fileID: 77547953}
   - component: {fileID: 77547955}
+  - component: {fileID: 77547956}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -244,6 +245,24 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   dropDistance: 1.5
+--- !u!114 &77547956
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 77547949}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5ad3d39be073af5418de6a8fec56ab75, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  playerCamera: {fileID: 330585545}
+  inventory: {fileID: 77547954}
+  inventorySelector: {fileID: 77547955}
+  inspectDistance: 3
+  followSpeed: 15
+  mouseRotateSensitivity: 4
 --- !u!1 &284973504
 GameObject:
   m_ObjectHideFlags: 0
@@ -985,7 +1004,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   inventory: {fileID: 77547954}
-  displayDuration: 4
+  displayDuration: 1
   width: 500
   bottomOffset: 110
   fontSize: 28

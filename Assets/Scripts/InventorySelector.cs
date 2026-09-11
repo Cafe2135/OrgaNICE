@@ -19,9 +19,9 @@ public class InventorySelector : MonoBehaviour
 
     void Update()
     {
-
         bool holdingObject = playerInteraction != null && playerInteraction.IsHolding;
 
+        // Only handle hotbar switching and slot dropping when NOT holding an item in front of camera
         if (!holdingObject)
         {
             for (int i = 0; i < 5; i++)
@@ -33,12 +33,12 @@ public class InventorySelector : MonoBehaviour
                     OnSelectionChanged?.Invoke();
                 }
             }
-        }
 
-        if (Input.GetKeyDown(KeyCode.G) && SelectedIndex >= 0 && inventory != null)
-        {
-            Vector3 dropPosition = transform.position + transform.forward * dropDistance + Vector3.up * 0.5f;
-            inventory.DropAt(SelectedIndex, dropPosition);
+            if (Input.GetKeyDown(KeyCode.G) && SelectedIndex >= 0 && inventory != null)
+            {
+                Vector3 dropPosition = transform.position + transform.forward * dropDistance + Vector3.up * 0.5f;
+                inventory.DropAt(SelectedIndex, dropPosition);
+            }
         }
     }
 
