@@ -369,6 +369,7 @@ MonoBehaviour:
   itemName: BLUE
   icon: {fileID: 21300000, guid: 6bcb5386080673343883e8ebc397df88, type: 3}
   itemTag: 1
+  description: This is Neutral
 --- !u!54 &284973510
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -907,6 +908,7 @@ MonoBehaviour:
   itemName: RED
   icon: {fileID: 21300000, guid: 2db55ed62d3c7144dac15a105f6d64fd, type: 3}
   itemTag: 0
+  description: This is Trash
 --- !u!54 &568819842
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -934,6 +936,59 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
+--- !u!1 &623688890
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 623688891}
+  - component: {fileID: 623688892}
+  m_Layer: 5
+  m_Name: SubtitleDisplay
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &623688891
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 623688890}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1855843666}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 100, y: 100}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &623688892
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 623688890}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2905aea0d0f6ae144b6b2da6a2deec7d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  inventory: {fileID: 77547954}
+  displayDuration: 4
+  width: 500
+  bottomOffset: 110
+  fontSize: 28
 --- !u!1 &775950059
 GameObject:
   m_ObjectHideFlags: 0
@@ -1148,6 +1203,7 @@ MonoBehaviour:
   itemName: GREEN
   icon: {fileID: 21300000, guid: b6967a4b16d0a3243aae25575f93fb76, type: 3}
   itemTag: 2
+  description: This is Needed
 --- !u!65 &1048389142
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -1650,6 +1706,7 @@ RectTransform:
   - {fileID: 1008902666}
   - {fileID: 775950060}
   - {fileID: 567775615}
+  - {fileID: 623688891}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}

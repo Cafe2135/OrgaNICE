@@ -19,8 +19,9 @@ public class Inventory : MonoBehaviour
     public IReadOnlyList<Entry> Items => items;
     public int MaxSlots => maxSlots;
     public event Action OnInventoryChanged;
+    public event Action<string> OnItemPickedUp;
 
-    public bool AddItem(string itemName, Sprite icon, ItemTag tag, GameObject sourceObject)
+    public bool AddItem(string itemName, string description, Sprite icon, ItemTag tag, GameObject sourceObject)
     {
         if (items.Count >= maxSlots)
         {
@@ -31,9 +32,9 @@ public class Inventory : MonoBehaviour
         items.Add(new Entry { itemName = itemName, icon = icon, tag = tag, sourceObject = sourceObject });
         Debug.Log($"Picked up: {itemName} [{tag}] ({items.Count}/{maxSlots})");
         OnInventoryChanged?.Invoke();
+        OnItemPickedUp?.Invoke(description);
         return true;
     }
-
     public bool DropAt(int index, Vector3 position)
     {
         if (index < 0 || index >= items.Count) return false;
