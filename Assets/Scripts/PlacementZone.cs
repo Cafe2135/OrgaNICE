@@ -4,9 +4,6 @@ using UnityEngine;
 public class PlacementZone : MonoBehaviour
 {
     [SerializeField] private ScoreDisplay scoreDisplay;
-    [SerializeField] private int neededItemPoints = 500;
-    [SerializeField] private int neutralItemPoints = 0;
-    [SerializeField] private int trashItemPoints = -200;
 
     private readonly List<InteractableItem> itemsInZone = new List<InteractableItem>();
     private int currentZoneScore = 0;
@@ -18,7 +15,8 @@ public class PlacementZone : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (other.TryGetComponent(out InteractableItem item))
+        InteractableItem item = other.GetComponentInParent<InteractableItem>();
+        if (item != null)
         {
             if (!itemsInZone.Contains(item))
             {
@@ -30,7 +28,8 @@ public class PlacementZone : MonoBehaviour
 
     private void OnTriggerExit(Collider other)
     {
-        if (other.TryGetComponent(out InteractableItem item))
+        InteractableItem item = other.GetComponentInParent<InteractableItem>();
+        if (item != null)
         {
             if (itemsInZone.Contains(item))
             {
@@ -69,13 +68,12 @@ public class PlacementZone : MonoBehaviour
             switch (item.Tag)
             {
                 case ItemTag.Needed:
-                    newScore += neededItemPoints;
-                    break;
-                case ItemTag.Neutral:
-                    newScore += neutralItemPoints;
+                    newScore += item.BasePoints;
                     break;
                 case ItemTag.Trash:
-                    newScore += trashItemPoints;
+                    newScore -= item.BasePoints;
+                    break;
+                case ItemTag.Neutral:
                     break;
             }
         }

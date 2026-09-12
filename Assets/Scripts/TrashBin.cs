@@ -3,31 +3,45 @@ using UnityEngine;
 public class TrashBin : MonoBehaviour
 {
     [SerializeField] private ScoreDisplay scoreDisplay;
-    [SerializeField] private int trashPoints = 500;
-    [SerializeField] private int neededPoints = -500;
-    [SerializeField] private int neutralPoints = 0;
 
     private void OnTriggerEnter(Collider other)
     {
-        if (other.CompareTag("Player"))
-        {
-            return;
-        }
+        TryProcessTrash(other);
+    }
 
-        if (other.TryGetComponent(out InteractableItem item))
+    private void OnTriggerStay(Collider other)
+    {
+        TryProcessTrash(other);
+    }
+
+    private void TryProcessTrash(Collider other)
+    {
+        if (other.CompareTag("Player")) return;
+
+        if (other.TryGetComponent(out InteractableItem item) && item.enabled)
         {
+            if (other.TryGetComponent(out Rigidbody rb))
+            {
+                PlayerInteraction playerInteraction = FindFirstObjectByType<PlayerInteraction>();
+                if (playerInteraction != null && playerInteraction.IsHolding && playerInteraction.HeldBody == rb)
+                {
+                    return;
+                }
+            }
+
+            item.enabled = false;
+
             int pointChange = 0;
-
             switch (item.Tag)
             {
                 case ItemTag.Trash:
-                    pointChange = trashPoints;
+                    pointChange = item.BasePoints;
                     break;
                 case ItemTag.Needed:
-                    pointChange = neededPoints;
+                    pointChange = -item.BasePoints;
                     break;
                 case ItemTag.Neutral:
-                    pointChange = neutralPoints;
+                    pointChange = 0;
                     break;
             }
 

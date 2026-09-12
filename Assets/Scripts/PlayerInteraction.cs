@@ -29,6 +29,11 @@ public class PlayerInteraction : MonoBehaviour
 
     void Update()
     {
+        if (isInspecting && heldBody == null)
+        {
+            Release();
+        }
+
         if (Input.GetKeyDown(KeyCode.E))
         {
             if (isInspecting)
@@ -115,10 +120,11 @@ public class PlayerInteraction : MonoBehaviour
 
     private void Release()
     {
-        if (heldBody == null) return;
-
-        heldBody.useGravity = true;
-        heldBody.linearVelocity = Vector3.zero;
+        if (heldBody != null)
+        {
+            heldBody.useGravity = true;
+            heldBody.linearVelocity = Vector3.zero;
+        }
         heldBody = null;
         isInspecting = false;
         LockCameraLook = false;
