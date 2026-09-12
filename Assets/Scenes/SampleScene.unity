@@ -505,6 +505,7 @@ MonoBehaviour:
   icon: {fileID: 21300000, guid: 6bcb5386080673343883e8ebc397df88, type: 3}
   itemTag: 1
   description: This is Neutral
+  basePoints: 250
 --- !u!54 &284973510
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -1153,6 +1154,7 @@ MonoBehaviour:
   icon: {fileID: 21300000, guid: 2db55ed62d3c7144dac15a105f6d64fd, type: 3}
   itemTag: 0
   description: This is Trash
+  basePoints: 250
 --- !u!54 &568819842
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -1556,6 +1558,7 @@ MonoBehaviour:
   icon: {fileID: 21300000, guid: b6967a4b16d0a3243aae25575f93fb76, type: 3}
   itemTag: 2
   description: This is Needed
+  basePoints: 250
 --- !u!65 &1048389142
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -1775,9 +1778,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   scoreDisplay: {fileID: 775950061}
-  neededItemPoints: 500
-  neutralItemPoints: 0
-  trashItemPoints: -200
 --- !u!65 &1199604101
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -1940,9 +1940,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   scoreDisplay: {fileID: 775950061}
-  trashPoints: 500
-  neededPoints: -500
-  neutralPoints: 0
 --- !u!136 &1363449632
 CapsuleCollider:
   m_ObjectHideFlags: 0
