@@ -10,6 +10,8 @@ public class ScoreDisplay : MonoBehaviour
 
     private TMP_Text label;
 
+    public int CurrentScore => score;
+
     void Awake()
     {
         var rect = GetComponent<RectTransform>();

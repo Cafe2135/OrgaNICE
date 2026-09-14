@@ -15,6 +15,7 @@ public class PlayerInteraction : MonoBehaviour
 
     private Rigidbody heldBody;
     private bool isInspecting = false;
+    private bool isRotatingObject = false;
 
     public static bool LockCameraLook { get; private set; } = false;
     public bool IsHolding => heldBody != null;
@@ -29,6 +30,10 @@ public class PlayerInteraction : MonoBehaviour
 
     void Update()
     {
+        UpdateCameraLockState();
+
+        if (PauseMenu.IsPaused || LevelEvaluationUI.IsEvaluating) return;
+
         if (isInspecting && heldBody == null)
         {
             Release();
@@ -60,6 +65,11 @@ public class PlayerInteraction : MonoBehaviour
         {
             MoveHeldObject();
         }
+    }
+
+    private void UpdateCameraLockState()
+    {
+        LockCameraLook = isRotatingObject || PauseMenu.IsPaused || LevelEvaluationUI.IsEvaluating;
     }
 
     private void TryPullOutFromInventory()
@@ -127,7 +137,8 @@ public class PlayerInteraction : MonoBehaviour
         }
         heldBody = null;
         isInspecting = false;
-        LockCameraLook = false;
+        isRotatingObject = false;
+        UpdateCameraLockState();
     }
 
     private void ReleaseAtCrosshair()
@@ -143,7 +154,8 @@ public class PlayerInteraction : MonoBehaviour
 
         heldBody = null;
         isInspecting = false;
-        LockCameraLook = false;
+        isRotatingObject = false;
+        UpdateCameraLockState();
     }
 
     public Vector3 CalculateCrosshairDropPosition(GameObject itemObj)
@@ -189,7 +201,7 @@ public class PlayerInteraction : MonoBehaviour
         {
             if (Input.GetMouseButton(0))
             {
-                LockCameraLook = true;
+                isRotatingObject = true;
 
                 float mouseX = Input.GetAxis("Mouse X") * mouseRotateSensitivity;
                 float mouseY = Input.GetAxis("Mouse Y") * mouseRotateSensitivity;
@@ -199,12 +211,12 @@ public class PlayerInteraction : MonoBehaviour
             }
             else
             {
-                LockCameraLook = false;
+                isRotatingObject = false;
             }
         }
         else
         {
-            LockCameraLook = false;
+            isRotatingObject = false;
         }
     }
 }
