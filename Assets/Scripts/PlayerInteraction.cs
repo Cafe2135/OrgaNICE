@@ -32,7 +32,7 @@ public class PlayerInteraction : MonoBehaviour
     {
         UpdateCameraLockState();
 
-        if (PauseMenu.IsPaused || LevelEvaluationUI.IsEvaluating) return;
+        if (PauseMenu.IsPaused || LevelEvaluationUI.IsEvaluating || StorageInteractionController.IsInStorageMode || StorageInteractionController.JustExitedStorage) return;
 
         if (isInspecting && heldBody == null)
         {
@@ -69,7 +69,7 @@ public class PlayerInteraction : MonoBehaviour
 
     private void UpdateCameraLockState()
     {
-        LockCameraLook = isRotatingObject || PauseMenu.IsPaused || LevelEvaluationUI.IsEvaluating;
+        LockCameraLook = isRotatingObject || PauseMenu.IsPaused || LevelEvaluationUI.IsEvaluating || StorageInteractionController.IsInStorageMode;
     }
 
     private void TryPullOutFromInventory()
@@ -81,6 +81,12 @@ public class PlayerInteraction : MonoBehaviour
             : 0;
 
         if (targetSlot >= inventory.Items.Count) return;
+
+        var itemData = inventory.Items[targetSlot];
+        if (itemData.sourceObject != null && itemData.sourceObject.TryGetComponent(out InteractableItem item) && item.IsInStorage)
+        {
+            return;
+        }
 
         GameObject obj = inventory.RemoveItemAt(targetSlot);
         if (obj != null)
@@ -98,6 +104,8 @@ public class PlayerInteraction : MonoBehaviour
 
             if (obj.TryGetComponent(out Rigidbody rb))
             {
+                rb.isKinematic = false;
+                rb.useGravity = true;
                 StartHolding(rb);
             }
         }
@@ -109,6 +117,8 @@ public class PlayerInteraction : MonoBehaviour
 
         if (heldBody.TryGetComponent(out InteractableItem item))
         {
+            if (item.IsInStorage) return;
+
             Release();
             item.Collect(inventory);
         }
@@ -117,9 +127,17 @@ public class PlayerInteraction : MonoBehaviour
     private void StartHolding(Rigidbody body)
     {
         heldBody = body;
+        if (heldBody.TryGetComponent(out InteractableItem item))
+        {
+            if (item.IsInStorage)
+            {
+                heldBody = null;
+                return;
+            }
+        }
+        
+        heldBody.isKinematic = false;
         heldBody.useGravity = false;
-        heldBody.linearVelocity = Vector3.zero;
-        heldBody.angularVelocity = Vector3.zero;
         isInspecting = true;
     }
 
@@ -132,6 +150,7 @@ public class PlayerInteraction : MonoBehaviour
     {
         if (heldBody != null)
         {
+            heldBody.isKinematic = false;
             heldBody.useGravity = true;
             heldBody.linearVelocity = Vector3.zero;
         }
@@ -148,6 +167,7 @@ public class PlayerInteraction : MonoBehaviour
         Vector3 dropPos = CalculateCrosshairDropPosition(heldBody.gameObject);
 
         heldBody.position = dropPos;
+        heldBody.isKinematic = false;
         heldBody.useGravity = true;
         heldBody.linearVelocity = Vector3.zero;
         heldBody.angularVelocity = Vector3.zero;
@@ -192,7 +212,10 @@ public class PlayerInteraction : MonoBehaviour
     {
         Vector3 targetPoint = playerCamera.transform.position + playerCamera.transform.forward * inspectDistance;
         Vector3 toTarget = targetPoint - heldBody.position;
-        heldBody.linearVelocity = toTarget * followSpeed;
+        if (!heldBody.isKinematic)
+        {
+            heldBody.linearVelocity = toTarget * followSpeed;
+        }
     }
 
     private void HandleInspectRotation()

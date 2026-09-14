@@ -1,9 +1,16 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+public enum ZoneType
+{
+    Table,
+    Drawer
+}
+
 public class PlacementZone : MonoBehaviour
 {
     [SerializeField] private ScoreDisplay scoreDisplay;
+    [SerializeField] private ZoneType zoneType = ZoneType.Table;
 
     private readonly List<InteractableItem> itemsInZone = new List<InteractableItem>();
     private int currentZoneScore = 0;
@@ -65,13 +72,18 @@ public class PlacementZone : MonoBehaviour
         {
             if (item == null || !item.gameObject.activeInHierarchy) continue;
 
+            // Drawer zones ONLY score items that were formally placed via Storage View
+            if (zoneType == ZoneType.Drawer && !item.IsInStorage) continue;
+
+            int basePoints = (zoneType == ZoneType.Table) ? item.TablePlacementPoints : item.DrawerPlacementPoints;
+
             switch (item.Tag)
             {
                 case ItemTag.Needed:
-                    newScore += item.BasePoints;
+                    newScore += basePoints;
                     break;
                 case ItemTag.Trash:
-                    newScore -= item.BasePoints;
+                    newScore -= basePoints;
                     break;
                 case ItemTag.Neutral:
                     break;

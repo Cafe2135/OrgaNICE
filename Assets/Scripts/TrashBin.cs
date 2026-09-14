@@ -35,10 +35,10 @@ public class TrashBin : MonoBehaviour
             switch (item.Tag)
             {
                 case ItemTag.Trash:
-                    pointChange = item.BasePoints;
+                    pointChange = item.TrashPoints;
                     break;
                 case ItemTag.Needed:
-                    pointChange = -item.BasePoints;
+                    pointChange = -item.TrashPoints;
                     break;
                 case ItemTag.Neutral:
                     pointChange = 0;

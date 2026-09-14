@@ -35,9 +35,14 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        HandleLook();
+        if (PauseMenu.IsPaused || LevelEvaluationUI.IsEvaluating || StorageInteractionController.IsInStorageMode)
+        {
+            return;
+        }
+         HandleLook();
         HandleCrouch();
         HandleMovement();
+
     }
 
     private void HandleLook()
