@@ -14,6 +14,7 @@ Click(hold) - Drag Small item into drawer (when in drawer view mode)
 E - Pull-out/in item for inspection
 Click(hold) - Rotate item when in inspection mode
 
+Click(Hold)- push/pull heavy objects
 
 Box Assignment
 Green - Required Item (+points)
