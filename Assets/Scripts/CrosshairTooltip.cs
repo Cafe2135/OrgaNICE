@@ -36,6 +36,7 @@ public class CrosshairTooltip : MonoBehaviour
         if (PauseMenu.IsPaused || 
             LevelEvaluationUI.IsEvaluating || 
             StorageInteractionController.IsInStorageMode || 
+            HeavyObjectController.IsDraggingObject ||
             (playerInteraction != null && playerInteraction.IsHolding))
         {
             ClearHighlight();
@@ -62,7 +63,16 @@ public class CrosshairTooltip : MonoBehaviour
                 return;
             }
 
-            // 1. Check Drawer / Small Storage
+            // 1. Check Heavy Movable Object (Ironing Board, Furniture)
+            MovableObject movable = hit.collider.GetComponentInParent<MovableObject>();
+            if (movable != null)
+            {
+                ShowTooltip($"[Hold Click] Push / Pull — {movable.ObjectName}");
+                ApplyHighlight(hit.collider.GetComponent<Renderer>());
+                return;
+            }
+
+            // 2. Check Drawer / Small Storage
             SmallStorage storage = hit.collider.GetComponentInParent<SmallStorage>();
             if (storage != null)
             {
@@ -71,7 +81,7 @@ public class CrosshairTooltip : MonoBehaviour
                 return;
             }
 
-            // 2. Check Trash Bin
+            // 3. Check Trash Bin
             TrashBin bin = hit.collider.GetComponentInParent<TrashBin>();
             if (bin != null)
             {
@@ -80,7 +90,7 @@ public class CrosshairTooltip : MonoBehaviour
                 return;
             }
 
-            // 3. Check Placement Surface
+            // 4. Check Placement Surface
             PlacementZone zone = hit.collider.GetComponentInParent<PlacementZone>();
             if (zone != null)
             {
@@ -147,7 +157,7 @@ public class CrosshairTooltip : MonoBehaviour
         panelRect.anchorMax = new Vector2(0.5f, 0.5f);
         panelRect.pivot = new Vector2(0.5f, 0.5f);
         panelRect.anchoredPosition = new Vector2(0f, -60f);
-        panelRect.sizeDelta = new Vector2(300f, 36f);
+        panelRect.sizeDelta = new Vector2(320f, 36f);
 
         var img = tooltipPanel.GetComponent<Image>();
         img.color = new Color(0f, 0f, 0f, 0.75f);

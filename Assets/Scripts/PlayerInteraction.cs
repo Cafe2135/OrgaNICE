@@ -136,13 +136,15 @@ public class PlayerInteraction : MonoBehaviour
                 return;
             }
 
-            // Display persistent subtitle while holding
             if (subtitleDisplay == null) subtitleDisplay = FindFirstObjectByType<SubtitleDisplay>();
             if (subtitleDisplay != null)
             {
                 subtitleDisplay.ShowPersistent($"{item.ItemName} — {item.Description}");
             }
         }
+
+        // Disable colliders while held so moving the item doesn't push heavy objects or clip environment
+        SetHeldCollidersEnabled(false);
 
         heldBody.isKinematic = false;
         heldBody.useGravity = false;
@@ -158,10 +160,14 @@ public class PlayerInteraction : MonoBehaviour
     {
         if (heldBody != null)
         {
+            // Re-enable colliders so item drops with proper physics collision
+            SetHeldCollidersEnabled(true);
+
             heldBody.isKinematic = false;
             heldBody.useGravity = true;
             heldBody.linearVelocity = Vector3.zero;
         }
+
         heldBody = null;
         isInspecting = false;
         isRotatingObject = false;
@@ -177,6 +183,9 @@ public class PlayerInteraction : MonoBehaviour
 
         Vector3 dropPos = CalculateCrosshairDropPosition(heldBody.gameObject);
 
+        // Re-enable colliders right as item is placed at crosshair
+        SetHeldCollidersEnabled(true);
+
         heldBody.position = dropPos;
         heldBody.isKinematic = false;
         heldBody.useGravity = true;
@@ -190,6 +199,17 @@ public class PlayerInteraction : MonoBehaviour
         if (subtitleDisplay != null) subtitleDisplay.Clear();
 
         UpdateCameraLockState();
+    }
+
+    private void SetHeldCollidersEnabled(bool enable)
+    {
+        if (heldBody == null) return;
+
+        Collider[] colliders = heldBody.GetComponentsInChildren<Collider>();
+        foreach (var col in colliders)
+        {
+            col.enabled = enable;
+        }
     }
 
     public Vector3 CalculateCrosshairDropPosition(GameObject itemObj)
