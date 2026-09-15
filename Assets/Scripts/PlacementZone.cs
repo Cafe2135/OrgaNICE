@@ -1,11 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public enum ZoneType
-{
-    Table,
-    Drawer
-}
+public enum ZoneType { Table, Drawer }
 
 public class PlacementZone : MonoBehaviour
 {
@@ -23,26 +19,20 @@ public class PlacementZone : MonoBehaviour
     private void OnTriggerEnter(Collider other)
     {
         InteractableItem item = other.GetComponentInParent<InteractableItem>();
-        if (item != null)
+        if (item != null && !itemsInZone.Contains(item))
         {
-            if (!itemsInZone.Contains(item))
-            {
-                itemsInZone.Add(item);
-                RecalculateScore();
-            }
+            itemsInZone.Add(item);
+            RecalculateScore();
         }
     }
 
     private void OnTriggerExit(Collider other)
     {
         InteractableItem item = other.GetComponentInParent<InteractableItem>();
-        if (item != null)
+        if (item != null && itemsInZone.Contains(item))
         {
-            if (itemsInZone.Contains(item))
-            {
-                itemsInZone.Remove(item);
-                RecalculateScore();
-            }
+            itemsInZone.Remove(item);
+            RecalculateScore();
         }
     }
 
@@ -58,10 +48,7 @@ public class PlacementZone : MonoBehaviour
             }
         }
 
-        if (changed)
-        {
-            RecalculateScore();
-        }
+        if (changed) RecalculateScore();
     }
 
     private void RecalculateScore()
@@ -72,21 +59,15 @@ public class PlacementZone : MonoBehaviour
         {
             if (item == null || !item.gameObject.activeInHierarchy) continue;
 
-            // Drawer zones ONLY score items that were formally placed via Storage View
             if (zoneType == ZoneType.Drawer && !item.IsInStorage) continue;
 
             int basePoints = (zoneType == ZoneType.Table) ? item.TablePlacementPoints : item.DrawerPlacementPoints;
 
             switch (item.Tag)
             {
-                case ItemTag.Needed:
-                    newScore += basePoints;
-                    break;
-                case ItemTag.Trash:
-                    newScore -= basePoints;
-                    break;
-                case ItemTag.Neutral:
-                    break;
+                case ItemTag.Needed: newScore += basePoints; break;
+                case ItemTag.Trash: newScore -= basePoints; break;
+                case ItemTag.Neutral: break;
             }
         }
 

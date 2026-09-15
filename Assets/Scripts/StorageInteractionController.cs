@@ -56,10 +56,7 @@ public class StorageInteractionController : MonoBehaviour
             }
         }
 
-        if (isInStorageView)
-        {
-            HandleStorageDragging();
-        }
+        if (isInStorageView) HandleStorageDragging();
     }
 
     private void TryEnterStorageView()
@@ -70,10 +67,7 @@ public class StorageInteractionController : MonoBehaviour
         if (Physics.Raycast(ray, out RaycastHit hit, interactRange, storageLayer, QueryTriggerInteraction.Collide))
         {
             SmallStorage storage = hit.collider.GetComponentInParent<SmallStorage>();
-            if (storage != null && storage.CameraAnchor != null)
-            {
-                EnterStorageView(storage);
-            }
+            if (storage != null && storage.CameraAnchor != null) EnterStorageView(storage);
         }
     }
 
@@ -97,10 +91,7 @@ public class StorageInteractionController : MonoBehaviour
 
     private void ExitStorageView()
     {
-        if (draggedItem != null)
-        {
-            CancelDrag();
-        }
+        if (draggedItem != null) CancelDrag();
 
         isInStorageView = false;
         IsInStorageMode = false;
@@ -114,7 +105,6 @@ public class StorageInteractionController : MonoBehaviour
         Cursor.visible = false;
 
         UpdateInventoryVisuals(false);
-
         activeStorage = null;
     }
 
@@ -128,10 +118,7 @@ public class StorageInteractionController : MonoBehaviour
                 var itemData = inventory.Items[clickedSlot];
                 if (itemData.sourceObject != null && itemData.sourceObject.TryGetComponent(out InteractableItem item))
                 {
-                    if (item.Size == ItemSize.Small)
-                    {
-                        StartDragFromInventory(clickedSlot, item);
-                    }
+                    if (item.Size == ItemSize.Small) StartDragFromInventory(clickedSlot, item);
                 }
             }
             else
@@ -142,10 +129,7 @@ public class StorageInteractionController : MonoBehaviour
                     if (hit.collider.TryGetComponent(out InteractableItem item) && item.Size == ItemSize.Small)
                     {
                         Transform slot = activeStorage.GetSlotOfItem(item);
-                        if (slot != null)
-                        {
-                            StartDragFromStorage(slot, item);
-                        }
+                        if (slot != null) StartDragFromStorage(slot, item);
                     }
                 }
             }
@@ -170,10 +154,7 @@ public class StorageInteractionController : MonoBehaviour
                 draggedItem.transform.rotation = Quaternion.AngleAxis(currentDragYRotation, activeStorage.transform.up) * baseFlatRot;
             }
 
-            if (Input.GetMouseButtonUp(0))
-            {
-                EndDrag();
-            }
+            if (Input.GetMouseButtonUp(0)) EndDrag();
         }
     }
 
@@ -189,7 +170,6 @@ public class StorageInteractionController : MonoBehaviour
 
         if (draggedItem.TryGetComponent(out Collider col)) col.enabled = false;
         
-        // Prepare physics state for potential world drop
         draggedItem.UnlockFromStorage();
         if (draggedItem.TryGetComponent(out Rigidbody rb)) rb.isKinematic = true;
 
@@ -217,7 +197,6 @@ public class StorageInteractionController : MonoBehaviour
         {
             if (inventory.Items.Count < 5)
             {
-                // Guaranteed to reset physics before going inactive in inventory
                 draggedItem.Collect(inventory);
                 ClearDragState();
                 UpdateInventoryVisuals(true);

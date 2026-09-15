@@ -2,14 +2,16 @@ using UnityEngine;
 
 public class PlayerInteraction : MonoBehaviour
 {
+    [Header("Camera & References")]
     [SerializeField] private Camera playerCamera;
     [SerializeField] private Inventory inventory;
     [SerializeField] private InventorySelector inventorySelector;
+    [SerializeField] private SubtitleDisplay subtitleDisplay;
 
+    [Header("Inspect & Drop Settings")]
     [SerializeField] private float inspectDistance = 1.2f;
     [SerializeField] private float followSpeed = 15f;
     [SerializeField] private float mouseRotateSensitivity = 4f;
-
     [SerializeField] private float maxDropRange = 3.5f;
     [SerializeField] private LayerMask dropSurfaceLayers = ~0;
 
@@ -26,6 +28,7 @@ public class PlayerInteraction : MonoBehaviour
         if (inventory == null) inventory = GetComponent<Inventory>();
         if (inventorySelector == null) inventorySelector = GetComponent<InventorySelector>();
         if (playerCamera == null) playerCamera = Camera.main;
+        if (subtitleDisplay == null) subtitleDisplay = FindFirstObjectByType<SubtitleDisplay>();
     }
 
     void Update()
@@ -104,8 +107,6 @@ public class PlayerInteraction : MonoBehaviour
 
             if (obj.TryGetComponent(out Rigidbody rb))
             {
-                rb.isKinematic = false;
-                rb.useGravity = true;
                 StartHolding(rb);
             }
         }
@@ -134,8 +135,15 @@ public class PlayerInteraction : MonoBehaviour
                 heldBody = null;
                 return;
             }
+
+            // Display persistent subtitle while holding
+            if (subtitleDisplay == null) subtitleDisplay = FindFirstObjectByType<SubtitleDisplay>();
+            if (subtitleDisplay != null)
+            {
+                subtitleDisplay.ShowPersistent($"{item.ItemName} — {item.Description}");
+            }
         }
-        
+
         heldBody.isKinematic = false;
         heldBody.useGravity = false;
         isInspecting = true;
@@ -157,6 +165,9 @@ public class PlayerInteraction : MonoBehaviour
         heldBody = null;
         isInspecting = false;
         isRotatingObject = false;
+
+        if (subtitleDisplay != null) subtitleDisplay.Clear();
+
         UpdateCameraLockState();
     }
 
@@ -175,6 +186,9 @@ public class PlayerInteraction : MonoBehaviour
         heldBody = null;
         isInspecting = false;
         isRotatingObject = false;
+
+        if (subtitleDisplay != null) subtitleDisplay.Clear();
+
         UpdateCameraLockState();
     }
 

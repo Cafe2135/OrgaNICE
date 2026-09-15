@@ -16,24 +16,34 @@ public class SubtitleDisplay : MonoBehaviour
     void Awake()
     {
         var rect = GetComponent<RectTransform>();
-        rect.anchorMin = new Vector2(0.5f, 0f);
-        rect.anchorMax = new Vector2(0.5f, 0f);
-        rect.pivot = new Vector2(0.5f, 0f);
-        rect.anchoredPosition = new Vector2(0f, bottomOffset);
-        rect.sizeDelta = new Vector2(width, 60f);
+        if (rect != null)
+        {
+            rect.anchorMin = new Vector2(0.5f, 0f);
+            rect.anchorMax = new Vector2(0.5f, 0f);
+            rect.pivot = new Vector2(0.5f, 0f);
+            rect.anchoredPosition = new Vector2(0f, bottomOffset);
+            rect.sizeDelta = new Vector2(width, 60f);
+        }
 
-        label = gameObject.AddComponent<TextMeshProUGUI>();
+        // Use existing TMP_Text or create only if missing
+        label = GetComponent<TMP_Text>();
+        if (label == null)
+        {
+            label = gameObject.AddComponent<TextMeshProUGUI>();
+        }
+
         label.fontSize = fontSize;
         label.alignment = TextAlignmentOptions.Center;
         label.color = Color.white;
         label.text = string.Empty;
+        label.raycastTarget = false;
     }
 
     void OnEnable()
     {
         if (inventory != null)
         {
-            inventory.OnItemPickedUp += Show;
+            inventory.OnItemPickedUp += ShowTimed;
         }
     }
 
@@ -41,12 +51,14 @@ public class SubtitleDisplay : MonoBehaviour
     {
         if (inventory != null)
         {
-            inventory.OnItemPickedUp -= Show;
+            inventory.OnItemPickedUp -= ShowTimed;
         }
     }
 
-    private void Show(string text)
+    // Displays text for a temporary duration (e.g. quick pickup notification)
+    public void ShowTimed(string text)
     {
+        if (label == null) return;
         label.text = text;
 
         if (hideRoutine != null)
@@ -56,9 +68,39 @@ public class SubtitleDisplay : MonoBehaviour
         hideRoutine = StartCoroutine(HideAfterDelay());
     }
 
+    // Displays persistent text while holding/inspecting an item
+    public void ShowPersistent(string text)
+    {
+        if (hideRoutine != null)
+        {
+            StopCoroutine(hideRoutine);
+            hideRoutine = null;
+        }
+        if (label != null)
+        {
+            label.text = text;
+        }
+    }
+
+    public void Clear()
+    {
+        if (hideRoutine != null)
+        {
+            StopCoroutine(hideRoutine);
+            hideRoutine = null;
+        }
+        if (label != null)
+        {
+            label.text = string.Empty;
+        }
+    }
+
     private IEnumerator HideAfterDelay()
     {
         yield return new WaitForSeconds(displayDuration);
-        label.text = string.Empty;
+        if (label != null)
+        {
+            label.text = string.Empty;
+        }
     }
 }

@@ -1,24 +1,8 @@
 using UnityEngine;
 
-public enum ItemTag
-{
-    Trash,
-    Neutral,
-    Needed
-}
-
-public enum ItemSize
-{
-    Small,
-    Large
-}
-
-public enum UpAxis
-{
-    PositiveY,
-    PositiveX,
-    PositiveZ
-}
+public enum ItemTag { Trash, Neutral, Needed }
+public enum ItemSize { Small, Large }
+public enum UpAxis { PositiveY, PositiveX, PositiveZ }
 
 public class InteractableItem : MonoBehaviour
 {
@@ -28,7 +12,7 @@ public class InteractableItem : MonoBehaviour
     [SerializeField] private ItemSize itemSize = ItemSize.Small;
     [SerializeField, TextArea] private string description = "An item.";
 
-    [Header("Scoring")]
+    [Header("Scoring Points")]
     [SerializeField] private int tablePlacementPoints = 100;
     [SerializeField] private int drawerPlacementPoints = 300;
     [SerializeField] private int trashPoints = 250;
@@ -41,6 +25,7 @@ public class InteractableItem : MonoBehaviour
     public Sprite Icon => icon;
     public ItemTag Tag => itemTag;
     public ItemSize Size => itemSize;
+    public string Description => description;
     public int TablePlacementPoints => tablePlacementPoints;
     public int DrawerPlacementPoints => drawerPlacementPoints;
     public int TrashPoints => trashPoints;
@@ -61,7 +46,6 @@ public class InteractableItem : MonoBehaviour
         return slotTransform.rotation * alignment * Quaternion.Euler(customRotationOffset);
     }
 
-    // Freeze physics only while snapped inside a drawer slot
     public void LockInStorage()
     {
         IsInStorage = true;
@@ -72,7 +56,6 @@ public class InteractableItem : MonoBehaviour
         }
     }
 
-    // Restore full 3D physics whenever item leaves a drawer or enters world
     public void UnlockFromStorage()
     {
         IsInStorage = false;
@@ -88,7 +71,6 @@ public class InteractableItem : MonoBehaviour
     {
         if (IsInStorage) return;
 
-        // Ensure item is standard dynamic physics before storing in inventory
         UnlockFromStorage();
 
         if (inventory.AddItem(itemName, description, icon, itemTag, gameObject))

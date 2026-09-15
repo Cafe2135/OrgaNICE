@@ -25,10 +25,7 @@ public class SmallStorage : MonoBehaviour
             }
         }
 
-        if (placementZone == null)
-        {
-            placementZone = GetComponent<PlacementZone>();
-        }
+        if (placementZone == null) placementZone = GetComponent<PlacementZone>();
     }
 
     public Transform GetClosestFreeSlot(Vector3 worldPoint, float maxDistance = 1.2f)
@@ -57,8 +54,6 @@ public class SmallStorage : MonoBehaviour
         if (!snapSlots.Contains(targetSlot) || slotOccupants[targetSlot] != null) return false;
 
         slotOccupants[targetSlot] = item;
-        
-        // Locks position and turns kinematic ONLY while sitting in drawer slot
         item.LockInStorage();
 
         item.gameObject.SetActive(true);
@@ -67,10 +62,7 @@ public class SmallStorage : MonoBehaviour
         Quaternion baseFlatRot = item.GetFlatBaseRotation(targetSlot);
         item.transform.rotation = Quaternion.AngleAxis(currentYRotation, targetSlot.up) * baseFlatRot;
 
-        if (item.TryGetComponent(out Collider col))
-        {
-            col.enabled = true;
-        }
+        if (item.TryGetComponent(out Collider col)) col.enabled = true;
 
         return true;
     }
@@ -87,14 +79,7 @@ public class SmallStorage : MonoBehaviour
     public void RemoveItem(InteractableItem item)
     {
         Transform slot = GetSlotOfItem(item);
-        if (slot != null)
-        {
-            slotOccupants[slot] = null;
-        }
-        if (item != null)
-        {
-            // Restores gravity and dynamic physics as soon as it leaves slot
-            item.UnlockFromStorage();
-        }
+        if (slot != null) slotOccupants[slot] = null;
+        if (item != null) item.UnlockFromStorage();
     }
 }
