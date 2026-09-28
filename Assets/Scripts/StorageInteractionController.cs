@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -43,6 +44,7 @@ public class StorageInteractionController : MonoBehaviour
             JustExitedStorage = false;
         }
 
+        // Press F to toggle storage drawer inspection
         if (Input.GetKeyDown(KeyCode.F))
         {
             if (isInStorageView)
@@ -50,13 +52,17 @@ public class StorageInteractionController : MonoBehaviour
                 ExitStorageView();
                 return;
             }
-            else if (!JustExitedStorage)
+            else if (!JustExitedStorage && !ChecklistUI.IsChecklistOpen)
             {
                 TryEnterStorageView();
             }
         }
 
-        if (isInStorageView) HandleStorageDragging();
+        if (isInStorageView)
+        {
+            UpdateCameraToFollowDrawer();
+            HandleStorageDragging();
+        }
     }
 
     private void TryEnterStorageView()
@@ -67,7 +73,10 @@ public class StorageInteractionController : MonoBehaviour
         if (Physics.Raycast(ray, out RaycastHit hit, interactRange, storageLayer, QueryTriggerInteraction.Collide))
         {
             SmallStorage storage = hit.collider.GetComponentInParent<SmallStorage>();
-            if (storage != null && storage.CameraAnchor != null) EnterStorageView(storage);
+            if (storage != null && storage.CameraAnchor != null)
+            {
+                EnterStorageView(storage);
+            }
         }
     }
 
@@ -80,8 +89,8 @@ public class StorageInteractionController : MonoBehaviour
         originalCamPos = playerCamera.transform.position;
         originalCamRot = playerCamera.transform.rotation;
 
-        playerCamera.transform.position = storage.CameraAnchor.position;
-        playerCamera.transform.rotation = storage.CameraAnchor.rotation;
+        // Slide drawer OUT automatically
+        activeStorage.OpenDrawer();
 
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
@@ -92,6 +101,12 @@ public class StorageInteractionController : MonoBehaviour
     private void ExitStorageView()
     {
         if (draggedItem != null) CancelDrag();
+
+        // Slide drawer CLOSED automatically
+        if (activeStorage != null)
+        {
+            activeStorage.CloseDrawer();
+        }
 
         isInStorageView = false;
         IsInStorageMode = false;
@@ -106,6 +121,16 @@ public class StorageInteractionController : MonoBehaviour
 
         UpdateInventoryVisuals(false);
         activeStorage = null;
+    }
+
+    private void UpdateCameraToFollowDrawer()
+    {
+        // Smoothly position camera at CameraAnchor as drawer pulls out
+        if (activeStorage != null && activeStorage.CameraAnchor != null)
+        {
+            playerCamera.transform.position = Vector3.Lerp(playerCamera.transform.position, activeStorage.CameraAnchor.position, Time.deltaTime * 10f);
+            playerCamera.transform.rotation = Quaternion.Slerp(playerCamera.transform.rotation, activeStorage.CameraAnchor.rotation, Time.deltaTime * 10f);
+        }
     }
 
     private void HandleStorageDragging()

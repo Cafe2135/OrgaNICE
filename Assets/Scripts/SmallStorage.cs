@@ -1,8 +1,15 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class SmallStorage : MonoBehaviour
 {
+    [Header("Cabinet & Sliding Motion")]
+    [SerializeField] private Transform slidingTransform; // The drawer mesh/transform that slides
+    [SerializeField] private Vector3 slideDirection = Vector3.forward; // Local direction to pull out (e.g. forward or z-axis)
+    [SerializeField] private float slideDistance = 0.55f; // How far out the drawer pulls
+    [SerializeField] private float slideSpeed = 6f; // Speed of opening/closing animation
+
     [Header("Camera & Slots")]
     [SerializeField] private Transform cameraAnchor;
     [SerializeField] private List<Transform> snapSlots = new List<Transform>();
@@ -12,11 +19,21 @@ public class SmallStorage : MonoBehaviour
 
     private readonly Dictionary<Transform, InteractableItem> slotOccupants = new Dictionary<Transform, InteractableItem>();
 
+    private Vector3 closedLocalPos;
+    private Vector3 openLocalPos;
+    private Coroutine slideRoutine;
+
     public Transform CameraAnchor => cameraAnchor;
     public List<Transform> SnapSlots => snapSlots;
+    public bool IsOpen { get; private set; } = false;
 
     void Awake()
     {
+        if (slidingTransform == null) slidingTransform = transform;
+
+        closedLocalPos = slidingTransform.localPosition;
+        openLocalPos = closedLocalPos + (slideDirection.normalized * slideDistance);
+
         foreach (var slot in snapSlots)
         {
             if (slot != null && !slotOccupants.ContainsKey(slot))
@@ -26,6 +43,34 @@ public class SmallStorage : MonoBehaviour
         }
 
         if (placementZone == null) placementZone = GetComponent<PlacementZone>();
+    }
+
+    public void OpenDrawer()
+    {
+        IsOpen = true;
+        AnimateSlide(openLocalPos);
+    }
+
+    public void CloseDrawer()
+    {
+        IsOpen = false;
+        AnimateSlide(closedLocalPos);
+    }
+
+    private void AnimateSlide(Vector3 targetLocalPos)
+    {
+        if (slideRoutine != null) StopCoroutine(slideRoutine);
+        slideRoutine = StartCoroutine(SlideRoutine(targetLocalPos));
+    }
+
+    private IEnumerator SlideRoutine(Vector3 targetLocalPos)
+    {
+        while (Vector3.Distance(slidingTransform.localPosition, targetLocalPos) > 0.001f)
+        {
+            slidingTransform.localPosition = Vector3.Lerp(slidingTransform.localPosition, targetLocalPos, Time.deltaTime * slideSpeed);
+            yield return null;
+        }
+        slidingTransform.localPosition = targetLocalPos;
     }
 
     public Transform GetClosestFreeSlot(Vector3 worldPoint, float maxDistance = 1.2f)
@@ -57,6 +102,7 @@ public class SmallStorage : MonoBehaviour
         item.LockInStorage();
 
         item.gameObject.SetActive(true);
+        item.transform.SetParent(targetSlot); // Parent item to slot so it moves along when drawer closes!
         item.transform.position = targetSlot.position;
 
         Quaternion baseFlatRot = item.GetFlatBaseRotation(targetSlot);
@@ -80,6 +126,10 @@ public class SmallStorage : MonoBehaviour
     {
         Transform slot = GetSlotOfItem(item);
         if (slot != null) slotOccupants[slot] = null;
-        if (item != null) item.UnlockFromStorage();
+        if (item != null)
+        {
+            item.transform.SetParent(null); // Unparent when leaving drawer
+            item.UnlockFromStorage();
+        }
     }
 }
