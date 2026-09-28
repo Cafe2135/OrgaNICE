@@ -35,7 +35,8 @@ public class PlayerInteraction : MonoBehaviour
     {
         UpdateCameraLockState();
 
-        if (PauseMenu.IsPaused || LevelEvaluationUI.IsEvaluating || StorageInteractionController.IsInStorageMode || StorageInteractionController.JustExitedStorage) return;
+        // Block player interaction when paused, evaluating, in storage, OR in checklist mode
+        if (PauseMenu.IsPaused || LevelEvaluationUI.IsEvaluating || StorageInteractionController.IsInStorageMode || StorageInteractionController.JustExitedStorage || ChecklistUI.IsChecklistOpen) return;
 
         if (isInspecting && heldBody == null)
         {
@@ -72,7 +73,7 @@ public class PlayerInteraction : MonoBehaviour
 
     private void UpdateCameraLockState()
     {
-        LockCameraLook = isRotatingObject || PauseMenu.IsPaused || LevelEvaluationUI.IsEvaluating || StorageInteractionController.IsInStorageMode;
+        LockCameraLook = isRotatingObject || PauseMenu.IsPaused || LevelEvaluationUI.IsEvaluating || StorageInteractionController.IsInStorageMode || ChecklistUI.IsChecklistOpen;
     }
 
     private void TryPullOutFromInventory()
@@ -136,6 +137,9 @@ public class PlayerInteraction : MonoBehaviour
                 return;
             }
 
+            // Mark item as discovered for checklist tracking
+            item.MarkDiscovered();
+
             if (subtitleDisplay == null) subtitleDisplay = FindFirstObjectByType<SubtitleDisplay>();
             if (subtitleDisplay != null)
             {
@@ -143,7 +147,6 @@ public class PlayerInteraction : MonoBehaviour
             }
         }
 
-        // Disable colliders while held so moving the item doesn't push heavy objects or clip environment
         SetHeldCollidersEnabled(false);
 
         heldBody.isKinematic = false;
@@ -160,9 +163,7 @@ public class PlayerInteraction : MonoBehaviour
     {
         if (heldBody != null)
         {
-            // Re-enable colliders so item drops with proper physics collision
             SetHeldCollidersEnabled(true);
-
             heldBody.isKinematic = false;
             heldBody.useGravity = true;
             heldBody.linearVelocity = Vector3.zero;
@@ -183,7 +184,6 @@ public class PlayerInteraction : MonoBehaviour
 
         Vector3 dropPos = CalculateCrosshairDropPosition(heldBody.gameObject);
 
-        // Re-enable colliders right as item is placed at crosshair
         SetHeldCollidersEnabled(true);
 
         heldBody.position = dropPos;

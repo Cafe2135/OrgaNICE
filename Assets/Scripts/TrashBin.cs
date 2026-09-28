@@ -9,11 +9,6 @@ public class TrashBin : MonoBehaviour
         TryProcessTrash(other);
     }
 
-    private void OnTriggerStay(Collider other)
-    {
-        TryProcessTrash(other);
-    }
-
     private void TryProcessTrash(Collider other)
     {
         if (other.CompareTag("Player")) return;
@@ -36,6 +31,11 @@ public class TrashBin : MonoBehaviour
             {
                 case ItemTag.Trash:
                     pointChange = item.TrashPoints;
+                    // Notify Objective Manager on trash destruction
+                    if (LevelObjectiveManager.Instance != null)
+                    {
+                        LevelObjectiveManager.Instance.ReportTrashDestroyed();
+                    }
                     break;
                 case ItemTag.Needed:
                     pointChange = -item.TrashPoints;
@@ -50,7 +50,12 @@ public class TrashBin : MonoBehaviour
                 scoreDisplay.AddScore(pointChange);
             }
 
-            Debug.Log($"Trashed: {other.name} [{item.Tag}] | Points: {pointChange}");
+            // Trigger objective updates after score changes
+            if (LevelObjectiveManager.Instance != null)
+            {
+                LevelObjectiveManager.Instance.EvaluateObjectives();
+            }
+
             Destroy(other.gameObject);
         }
     }

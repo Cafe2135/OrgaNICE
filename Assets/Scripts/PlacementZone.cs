@@ -78,5 +78,24 @@ public class PlacementZone : MonoBehaviour
         {
             scoreDisplay.AddScore(scoreDelta);
         }
+
+        // Calculate total correctly placed needed items across all zones in the level
+        if (LevelObjectiveManager.Instance != null)
+        {
+            int globalNeededInZones = 0;
+            PlacementZone[] allZones = FindObjectsByType<PlacementZone>(FindObjectsSortMode.None);
+            foreach (var zone in allZones)
+            {
+                foreach (var item in zone.itemsInZone)
+                {
+                    if (item != null && item.gameObject.activeInHierarchy && item.Tag == ItemTag.Needed)
+                    {
+                        if (zone.zoneType == ZoneType.Drawer && !item.IsInStorage) continue;
+                        globalNeededInZones++;
+                    }
+                }
+            }
+            LevelObjectiveManager.Instance.ReportPlacementChange(globalNeededInZones);
+        }
     }
 }

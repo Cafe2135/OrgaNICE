@@ -1683,6 +1683,54 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 636221157}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &750970720
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 750970722}
+  - component: {fileID: 750970721}
+  m_Layer: 0
+  m_Name: LevelObjectiveManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &750970721
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 750970720}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a4f1256e9cd86ee4b895edba8e5431ad, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  scoreDisplay: {fileID: 775950061}
+  totalTrashInLevel: 2
+  totalNeededItemsInLevel: 2
+  targetStar3Score: 1200
+--- !u!4 &750970722
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 750970720}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -1.2274948, y: -0.99111116, z: 8.222675}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &775950059
 GameObject:
   m_ObjectHideFlags: 0
@@ -3790,6 +3838,7 @@ GameObject:
   - component: {fileID: 1855843664}
   - component: {fileID: 1855843663}
   - component: {fileID: 1855843667}
+  - component: {fileID: 1855843668}
   m_Layer: 5
   m_Name: Canvas
   m_TagString: Untagged
@@ -3903,6 +3952,18 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 4294967295
   highlightTint: {r: 1, g: 1, b: 1, a: 1}
+--- !u!114 &1855843668
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1855843662}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 07b265c22457aa844b6eb4ffbbad0c46, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1861280851
 GameObject:
   m_ObjectHideFlags: 0
@@ -4327,3 +4388,4 @@ SceneRoots:
   - {fileID: 64904059}
   - {fileID: 1612184279}
   - {fileID: 2129780112}
+  - {fileID: 750970722}

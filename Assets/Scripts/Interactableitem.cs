@@ -31,6 +31,31 @@ public class InteractableItem : MonoBehaviour
     public int TrashPoints => trashPoints;
 
     public bool IsInStorage { get; private set; } = false;
+    public bool HasBeenDiscovered { get; private set; } = false;
+
+    void Start()
+    {
+        IgnoreHeavyObjectCollisions();
+    }
+
+    // Ignores collisions with heavy furniture/ironing boards
+    public void IgnoreHeavyObjectCollisions()
+    {
+        Collider[] myColliders = GetComponentsInChildren<Collider>();
+        MovableObject[] heavyObjects = FindObjectsByType<MovableObject>(FindObjectsSortMode.None);
+
+        foreach (var heavy in heavyObjects)
+        {
+            Collider[] heavyColliders = heavy.GetComponentsInChildren<Collider>();
+            foreach (var myCol in myColliders)
+            {
+                foreach (var heavyCol in heavyColliders)
+                {
+                    Physics.IgnoreCollision(myCol, heavyCol, true);
+                }
+            }
+        }
+    }
 
     public Quaternion GetFlatBaseRotation(Transform slotTransform)
     {
@@ -44,6 +69,18 @@ public class InteractableItem : MonoBehaviour
 
         Quaternion alignment = Quaternion.FromToRotation(localUpVector, Vector3.up);
         return slotTransform.rotation * alignment * Quaternion.Euler(customRotationOffset);
+    }
+
+    public void MarkDiscovered()
+    {
+        if (!HasBeenDiscovered)
+        {
+            HasBeenDiscovered = true;
+            if (itemTag == ItemTag.Needed && LevelObjectiveManager.Instance != null)
+            {
+                LevelObjectiveManager.Instance.ReportNeededItemDiscovered();
+            }
+        }
     }
 
     public void LockInStorage()
@@ -71,6 +108,7 @@ public class InteractableItem : MonoBehaviour
     {
         if (IsInStorage) return;
 
+        MarkDiscovered();
         UnlockFromStorage();
 
         if (inventory.AddItem(itemName, description, icon, itemTag, gameObject))
