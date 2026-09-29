@@ -2,53 +2,38 @@ using UnityEngine;
 
 public class LevelExit : MonoBehaviour
 {
-    [Header("References")]
-    public ScoreDisplay scoreDisplay;
-    public LevelEvaluationUI evaluationUI;
+    [SerializeField] private float interactRange = 3.5f;
+    [SerializeField] private Camera playerCamera;
 
-    [Header("Star Score Thresholds")]
-    public int star1Threshold = 250;
-    public int star2Threshold = 500;
-    public int star3Threshold = 1000;
-
-    private bool playerInTrigger = false;
+    void Awake()
+    {
+        if (playerCamera == null) playerCamera = Camera.main;
+    }
 
     void Update()
     {
-        if (playerInTrigger && Input.GetKeyDown(KeyCode.F))
+        if (PauseMenu.IsPaused || LevelEvaluationUI.IsEvaluating || StorageInteractionController.IsInStorageMode || ChecklistUI.IsChecklistOpen) return;
+
+        if (Input.GetKeyDown(KeyCode.E))
         {
-            EvaluateAndExit();
+            TryExit();
         }
     }
 
-    private void OnTriggerEnter(Collider other)
+    private void TryExit()
     {
-        if (other.CompareTag("Player"))
+        if (playerCamera == null) return;
+
+        Ray ray = new Ray(playerCamera.transform.position, playerCamera.transform.forward);
+        if (Physics.Raycast(ray, out RaycastHit hit, interactRange))
         {
-            playerInTrigger = true;
-        }
-    }
-
-    private void OnTriggerExit(Collider other)
-    {
-        if (other.CompareTag("Player"))
-        {
-            playerInTrigger = false;
-        }
-    }
-
-    private void EvaluateAndExit()
-    {
-        int currentScore = scoreDisplay != null ? scoreDisplay.CurrentScore : 0;
-
-        int starsEarned = 0;
-        if (currentScore >= star3Threshold) starsEarned = 3;
-        else if (currentScore >= star2Threshold) starsEarned = 2;
-        else if (currentScore >= star1Threshold) starsEarned = 1;
-
-        if (evaluationUI != null)
-        {
-            evaluationUI.ShowEvaluation(currentScore, starsEarned);
+            if (hit.collider.gameObject == gameObject || hit.collider.transform.IsChildOf(transform))
+            {
+                if (LevelEvaluationUI.Instance != null)
+                {
+                    LevelEvaluationUI.Instance.ShowEvaluation();
+                }
+            }
         }
     }
 }

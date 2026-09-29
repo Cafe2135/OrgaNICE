@@ -4,6 +4,12 @@ using TMPro;
 
 public class CrosshairTooltip : MonoBehaviour
 {
+    [Header("UI Theme Settings")]
+    [SerializeField] private Sprite slicedPanelSprite;
+    [SerializeField] private Vector4 padding = new Vector4(20, 20, 10, 10);
+    [SerializeField] private float verticalOffset = -70f;
+    [SerializeField] private float maxTooltipWidth = 380f;
+
     [Header("Raycast Settings")]
     [SerializeField] private float rayDistance = 3.5f;
     [SerializeField] private LayerMask interactableLayers = ~0;
@@ -14,7 +20,10 @@ public class CrosshairTooltip : MonoBehaviour
     private Camera playerCamera;
     private PlayerInteraction playerInteraction;
     private GameObject tooltipPanel;
+    private RectTransform panelRect;
+    private Image panelImage;
     private TMP_Text tooltipText;
+    private LayoutElement textLayoutElement;
 
     private Renderer currentRenderer;
     private Color originalColor;
@@ -37,6 +46,7 @@ public class CrosshairTooltip : MonoBehaviour
             LevelEvaluationUI.IsEvaluating || 
             StorageInteractionController.IsInStorageMode || 
             HeavyObjectController.IsDraggingObject ||
+            ChecklistUI.IsChecklistOpen ||
             (playerInteraction != null && playerInteraction.IsHolding))
         {
             ClearHighlight();
@@ -55,7 +65,6 @@ public class CrosshairTooltip : MonoBehaviour
 
         if (Physics.Raycast(ray, out RaycastHit hit, rayDistance, interactableLayers, QueryTriggerInteraction.Collide))
         {
-            // Ignore standalone items (handled by Subtitle UI)
             if (hit.collider.GetComponent<InteractableItem>() != null)
             {
                 ClearHighlight();
@@ -63,7 +72,16 @@ public class CrosshairTooltip : MonoBehaviour
                 return;
             }
 
-            // 1. Check Heavy Movable Object (Ironing Board, Furniture)
+            // 1. Check Exit Door (LevelExit.cs)
+            LevelExit door = hit.collider.GetComponentInParent<LevelExit>();
+            if (door != null)
+            {
+                ShowTooltip("[E] Leave Room");
+                ApplyHighlight(hit.collider.GetComponent<Renderer>());
+                return;
+            }
+
+            // 2. Check Heavy Movable Props
             MovableObject movable = hit.collider.GetComponentInParent<MovableObject>();
             if (movable != null)
             {
@@ -72,7 +90,7 @@ public class CrosshairTooltip : MonoBehaviour
                 return;
             }
 
-            // 2. Check Drawer / Small Storage
+            // 3. Check Storage Drawer
             SmallStorage storage = hit.collider.GetComponentInParent<SmallStorage>();
             if (storage != null)
             {
@@ -81,7 +99,7 @@ public class CrosshairTooltip : MonoBehaviour
                 return;
             }
 
-            // 3. Check Trash Bin
+            // 4. Check Trash Bin
             TrashBin bin = hit.collider.GetComponentInParent<TrashBin>();
             if (bin != null)
             {
@@ -90,7 +108,7 @@ public class CrosshairTooltip : MonoBehaviour
                 return;
             }
 
-            // 4. Check Placement Surface
+            // 5. Check Placement Area
             PlacementZone zone = hit.collider.GetComponentInParent<PlacementZone>();
             if (zone != null)
             {
@@ -138,8 +156,17 @@ public class CrosshairTooltip : MonoBehaviour
 
     private void ShowTooltip(string text)
     {
-        if (tooltipText != null) tooltipText.text = text;
-        if (tooltipPanel != null) tooltipPanel.SetActive(true);
+        if (tooltipText == null || tooltipPanel == null) return;
+
+        tooltipText.text = text;
+
+        float preferredWidth = tooltipText.GetPreferredValues(text).x;
+        textLayoutElement.enabled = preferredWidth > maxTooltipWidth;
+
+        panelRect.anchoredPosition = new Vector2(0f, verticalOffset);
+
+        LayoutRebuilder.ForceRebuildLayoutImmediate(panelRect);
+        tooltipPanel.SetActive(true);
     }
 
     private void HideTooltip()
@@ -149,33 +176,57 @@ public class CrosshairTooltip : MonoBehaviour
 
     private void BuildUI()
     {
-        tooltipPanel = new GameObject("TooltipPanel", typeof(RectTransform), typeof(Image));
+        Transform existing = transform.Find("ThemedTooltipPanel");
+        if (existing != null) DestroyImmediate(existing.gameObject);
+
+        tooltipPanel = new GameObject("ThemedTooltipPanel", typeof(RectTransform), typeof(Image), typeof(HorizontalLayoutGroup), typeof(ContentSizeFitter));
         tooltipPanel.transform.SetParent(transform, false);
 
-        var panelRect = tooltipPanel.GetComponent<RectTransform>();
+        panelRect = tooltipPanel.GetComponent<RectTransform>();
         panelRect.anchorMin = new Vector2(0.5f, 0.5f);
         panelRect.anchorMax = new Vector2(0.5f, 0.5f);
         panelRect.pivot = new Vector2(0.5f, 0.5f);
-        panelRect.anchoredPosition = new Vector2(0f, -60f);
-        panelRect.sizeDelta = new Vector2(320f, 36f);
+        panelRect.anchoredPosition = new Vector2(0f, verticalOffset);
 
-        var img = tooltipPanel.GetComponent<Image>();
-        img.color = new Color(0f, 0f, 0f, 0.75f);
-        img.raycastTarget = false;
+        panelImage = tooltipPanel.GetComponent<Image>();
+        panelImage.raycastTarget = false;
 
-        var textGo = new GameObject("TooltipText", typeof(RectTransform));
+        if (slicedPanelSprite != null)
+        {
+            panelImage.sprite = slicedPanelSprite;
+            panelImage.type = Image.Type.Sliced;
+            panelImage.color = Color.white;
+        }
+        else
+        {
+            panelImage.sprite = null;
+            panelImage.color = new Color(0.08f, 0.08f, 0.12f, 0.85f);
+        }
+
+        HorizontalLayoutGroup layout = tooltipPanel.GetComponent<HorizontalLayoutGroup>();
+        layout.padding = new RectOffset((int)padding.x, (int)padding.y, (int)padding.z, (int)padding.w);
+        layout.childAlignment = TextAnchor.MiddleCenter;
+        layout.childControlWidth = true;
+        layout.childControlHeight = true;
+        layout.childForceExpandWidth = false;
+        layout.childForceExpandHeight = false;
+
+        ContentSizeFitter fitter = tooltipPanel.GetComponent<ContentSizeFitter>();
+        fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        GameObject textGo = new GameObject("TooltipText", typeof(RectTransform), typeof(LayoutElement));
         textGo.transform.SetParent(tooltipPanel.transform, false);
 
-        var textRect = textGo.GetComponent<RectTransform>();
-        textRect.anchorMin = Vector2.zero;
-        textRect.anchorMax = Vector2.one;
-        textRect.offsetMin = Vector2.zero;
-        textRect.offsetMax = Vector2.zero;
+        textLayoutElement = textGo.GetComponent<LayoutElement>();
+        textLayoutElement.preferredWidth = maxTooltipWidth;
+        textLayoutElement.enabled = false;
 
         tooltipText = textGo.AddComponent<TextMeshProUGUI>();
         tooltipText.fontSize = 17;
         tooltipText.alignment = TextAlignmentOptions.Center;
         tooltipText.color = Color.white;
+        tooltipText.enableWordWrapping = true;
         tooltipText.raycastTarget = false;
     }
 
