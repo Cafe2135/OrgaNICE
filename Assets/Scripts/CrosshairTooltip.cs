@@ -116,6 +116,13 @@ public class CrosshairTooltip : MonoBehaviour
                 ApplyHighlight(hit.collider.GetComponent<Renderer>());
                 return;
             }
+            CabinetStorage cabinet = hit.collider.GetComponentInParent<CabinetStorage>();
+            if (cabinet != null)
+            {
+                ShowTooltip("[F] Open Cabinet");
+                ApplyHighlight(hit.collider.GetComponent<Renderer>());
+                return;
+            }
         }
 
         ClearHighlight();

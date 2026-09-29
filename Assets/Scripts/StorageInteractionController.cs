@@ -12,7 +12,8 @@ public class StorageInteractionController : MonoBehaviour
     [SerializeField] private float interactRange = 4f;
     [SerializeField] private LayerMask storageLayer = ~0;
 
-    private SmallStorage activeStorage;
+    private SmallStorage activeDrawer;
+    private CabinetStorage activeCabinet;
     private bool isInStorageView = false;
     private bool justExitedThisFrame = false;
 
@@ -23,11 +24,13 @@ public class StorageInteractionController : MonoBehaviour
     private int originInventoryIndex = -1;
     private Transform originSlotTransform;
     private float currentDragYRotation = 0f;
-    private enum DragSource { None, Inventory, Storage }
+    private enum DragSource { None, Inventory, Drawer, Cabinet }
     private DragSource currentDragSource = DragSource.None;
 
     public static bool IsInStorageMode { get; private set; } = false;
     public static bool JustExitedStorage { get; private set; } = false;
+
+    private Transform ActiveCameraAnchor => activeDrawer != null ? activeDrawer.CameraAnchor : (activeCabinet != null ? activeCabinet.CameraAnchor : null);
 
     void Awake()
     {
@@ -44,7 +47,6 @@ public class StorageInteractionController : MonoBehaviour
             JustExitedStorage = false;
         }
 
-        // Press F to toggle storage drawer inspection
         if (Input.GetKeyDown(KeyCode.F))
         {
             if (isInStorageView)
@@ -60,7 +62,7 @@ public class StorageInteractionController : MonoBehaviour
 
         if (isInStorageView)
         {
-            UpdateCameraToFollowDrawer();
+            UpdateCameraToAnchor();
             HandleStorageDragging();
         }
     }
@@ -72,25 +74,45 @@ public class StorageInteractionController : MonoBehaviour
         Ray ray = new Ray(playerCamera.transform.position, playerCamera.transform.forward);
         if (Physics.Raycast(ray, out RaycastHit hit, interactRange, storageLayer, QueryTriggerInteraction.Collide))
         {
-            SmallStorage storage = hit.collider.GetComponentInParent<SmallStorage>();
-            if (storage != null && storage.CameraAnchor != null)
+            SmallStorage drawer = hit.collider.GetComponentInParent<SmallStorage>();
+            if (drawer != null && drawer.CameraAnchor != null)
             {
-                EnterStorageView(storage);
+                EnterDrawerStorage(drawer);
+                return;
+            }
+
+            CabinetStorage cabinet = hit.collider.GetComponentInParent<CabinetStorage>();
+            if (cabinet != null && cabinet.CameraAnchor != null)
+            {
+                EnterCabinetStorage(cabinet);
+                return;
             }
         }
     }
 
-    private void EnterStorageView(SmallStorage storage)
+    private void EnterDrawerStorage(SmallStorage drawer)
     {
-        activeStorage = storage;
+        activeDrawer = drawer;
+        activeCabinet = null;
+        StartStorageView();
+        activeDrawer.OpenDrawer();
+    }
+
+    private void EnterCabinetStorage(CabinetStorage cabinet)
+    {
+        activeCabinet = cabinet;
+        activeDrawer = null;
+        StartStorageView();
+        activeCabinet.OpenCabinet();
+    }
+
+    private void StartStorageView()
+    {
         isInStorageView = true;
         IsInStorageMode = true;
 
         originalCamPos = playerCamera.transform.position;
         originalCamRot = playerCamera.transform.rotation;
-
-        // Slide drawer OUT automatically
-        activeStorage.OpenDrawer();
 
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
@@ -102,11 +124,8 @@ public class StorageInteractionController : MonoBehaviour
     {
         if (draggedItem != null) CancelDrag();
 
-        // Slide drawer CLOSED automatically
-        if (activeStorage != null)
-        {
-            activeStorage.CloseDrawer();
-        }
+        if (activeDrawer != null) activeDrawer.CloseDrawer();
+        if (activeCabinet != null) activeCabinet.CloseCabinet();
 
         isInStorageView = false;
         IsInStorageMode = false;
@@ -120,21 +139,26 @@ public class StorageInteractionController : MonoBehaviour
         Cursor.visible = false;
 
         UpdateInventoryVisuals(false);
-        activeStorage = null;
+        activeDrawer = null;
+        activeCabinet = null;
     }
 
-    private void UpdateCameraToFollowDrawer()
+    private void UpdateCameraToAnchor()
     {
-        // Smoothly position camera at CameraAnchor as drawer pulls out
-        if (activeStorage != null && activeStorage.CameraAnchor != null)
+        Transform anchor = ActiveCameraAnchor;
+        if (anchor != null)
         {
-            playerCamera.transform.position = Vector3.Lerp(playerCamera.transform.position, activeStorage.CameraAnchor.position, Time.deltaTime * 10f);
-            playerCamera.transform.rotation = Quaternion.Slerp(playerCamera.transform.rotation, activeStorage.CameraAnchor.rotation, Time.deltaTime * 10f);
+            playerCamera.transform.position = Vector3.Lerp(playerCamera.transform.position, anchor.position, Time.deltaTime * 10f);
+            playerCamera.transform.rotation = Quaternion.Slerp(playerCamera.transform.rotation, anchor.rotation, Time.deltaTime * 10f);
         }
     }
 
     private void HandleStorageDragging()
     {
+        Transform anchor = ActiveCameraAnchor;
+        if (anchor == null) return;
+
+        // 1. START DRAGGING
         if (Input.GetMouseButtonDown(0) && draggedItem == null)
         {
             int clickedSlot = GetClickedInventorySlotIndex();
@@ -149,17 +173,27 @@ public class StorageInteractionController : MonoBehaviour
             else
             {
                 Ray ray = playerCamera.ScreenPointToRay(Input.mousePosition);
-                if (Physics.Raycast(ray, out RaycastHit hit, 10f))
+                if (Physics.Raycast(ray, out RaycastHit hit, 15f))
                 {
-                    if (hit.collider.TryGetComponent(out InteractableItem item) && item.Size == ItemSize.Small)
+                    InteractableItem item = hit.collider.GetComponentInParent<InteractableItem>();
+                    if (item != null && item.Size == ItemSize.Small)
                     {
-                        Transform slot = activeStorage.GetSlotOfItem(item);
-                        if (slot != null) StartDragFromStorage(slot, item);
+                        if (activeDrawer != null)
+                        {
+                            Transform slot = activeDrawer.GetSlotOfItem(item);
+                            if (slot != null) StartDragFromStorage(slot, item, DragSource.Drawer);
+                        }
+                        else if (activeCabinet != null)
+                        {
+                            Transform slot = activeCabinet.GetSlotOfItem(item);
+                            if (slot != null) StartDragFromStorage(slot, item, DragSource.Cabinet);
+                        }
                     }
                 }
             }
         }
 
+        // 2. WHILE DRAGGING (Supports Tilted Camera View)
         if (draggedItem != null)
         {
             if (Input.GetKeyDown(KeyCode.R))
@@ -169,14 +203,32 @@ public class StorageInteractionController : MonoBehaviour
             }
 
             Ray ray = playerCamera.ScreenPointToRay(Input.mousePosition);
-            Plane plane = new Plane(-activeStorage.CameraAnchor.forward, activeStorage.transform.position + Vector3.up * 0.1f);
+
+            Vector3 planeNormal = -anchor.forward;
+            Vector3 planePosition = anchor.position;
+
+            if (activeCabinet != null)
+            {
+                // Keeps plane perfectly upright along the cabinet face even when camera tilts down
+                planeNormal = -activeCabinet.transform.forward;
+                if (activeCabinet.SnapSlots.Count > 0 && activeCabinet.SnapSlots[0] != null)
+                {
+                    planePosition = activeCabinet.SnapSlots[0].position;
+                }
+            }
+            else if (activeDrawer != null && activeDrawer.SnapSlots.Count > 0 && activeDrawer.SnapSlots[0] != null)
+            {
+                planePosition = activeDrawer.SnapSlots[0].position;
+            }
+
+            Plane plane = new Plane(planeNormal, planePosition);
             if (plane.Raycast(ray, out float enter))
             {
                 Vector3 hitPoint = ray.GetPoint(enter);
                 draggedItem.transform.position = hitPoint;
 
-                Quaternion baseFlatRot = draggedItem.GetFlatBaseRotation(activeStorage.transform);
-                draggedItem.transform.rotation = Quaternion.AngleAxis(currentDragYRotation, activeStorage.transform.up) * baseFlatRot;
+                Quaternion baseFlatRot = draggedItem.GetFlatBaseRotation(anchor);
+                draggedItem.transform.rotation = Quaternion.AngleAxis(currentDragYRotation, anchor.up) * baseFlatRot;
             }
 
             if (Input.GetMouseButtonUp(0)) EndDrag();
@@ -194,31 +246,54 @@ public class StorageInteractionController : MonoBehaviour
         draggedItem.gameObject.SetActive(true);
 
         if (draggedItem.TryGetComponent(out Collider col)) col.enabled = false;
-        
         draggedItem.UnlockFromStorage();
         if (draggedItem.TryGetComponent(out Rigidbody rb)) rb.isKinematic = true;
 
         UpdateInventoryVisuals(true);
     }
 
-    private void StartDragFromStorage(Transform slot, InteractableItem item)
+    private void StartDragFromStorage(Transform slot, InteractableItem item, DragSource source)
     {
-        currentDragSource = DragSource.Storage;
+        currentDragSource = source;
         originSlotTransform = slot;
         currentDragYRotation = item.transform.localEulerAngles.y;
 
-        activeStorage.RemoveItem(item);
-        draggedItem = item;
+        if (source == DragSource.Drawer && activeDrawer != null) activeDrawer.RemoveItem(item);
+        else if (source == DragSource.Cabinet && activeCabinet != null) activeCabinet.RemoveItem(item);
 
+        draggedItem = item;
         if (draggedItem.TryGetComponent(out Collider col)) col.enabled = false;
         if (draggedItem.TryGetComponent(out Rigidbody rb)) rb.isKinematic = true;
     }
 
     private void EndDrag()
     {
-        bool droppedInUI = IsPointerOverInventoryUI();
+        // 1. Check for a nearby shelf slot using a precise 1.2f search threshold
+        Transform targetSlot = null;
+        float maxSnapDistance = 1.2f;
 
-        if (droppedInUI)
+        if (activeDrawer != null)
+        {
+            targetSlot = activeDrawer.GetClosestFreeSlot(draggedItem.transform.position, maxSnapDistance);
+        }
+        else if (activeCabinet != null)
+        {
+            targetSlot = activeCabinet.GetClosestFreeSlot(draggedItem.transform.position, maxSnapDistance);
+        }
+
+        // If directly over a shelf slot, snap to shelf
+        if (targetSlot != null)
+        {
+            if (activeDrawer != null) activeDrawer.PlaceItemInSlot(draggedItem, targetSlot, currentDragYRotation);
+            else if (activeCabinet != null) activeCabinet.PlaceItemInSlot(draggedItem, targetSlot, currentDragYRotation);
+
+            ClearDragState();
+            UpdateInventoryVisuals(true);
+            return;
+        }
+
+        // 2. If NOT aligned with a shelf slot, check if dropped over Hotbar UI
+        if (IsPointerOverInventoryUI())
         {
             if (inventory.Items.Count < 5)
             {
@@ -228,18 +303,8 @@ public class StorageInteractionController : MonoBehaviour
                 return;
             }
         }
-        else
-        {
-            Transform targetSlot = activeStorage.GetClosestFreeSlot(draggedItem.transform.position, 1.2f);
-            if (targetSlot != null)
-            {
-                activeStorage.PlaceItemInSlot(draggedItem, targetSlot, currentDragYRotation);
-                ClearDragState();
-                UpdateInventoryVisuals(true);
-                return;
-            }
-        }
 
+        // 3. Fallback: Return to starting location if released in open space
         CancelDrag();
     }
 
@@ -253,9 +318,13 @@ public class StorageInteractionController : MonoBehaviour
             draggedItem.UnlockFromStorage();
             draggedItem.gameObject.SetActive(false);
         }
-        else if (currentDragSource == DragSource.Storage && originSlotTransform != null)
+        else if (currentDragSource == DragSource.Drawer && originSlotTransform != null && activeDrawer != null)
         {
-            activeStorage.PlaceItemInSlot(draggedItem, originSlotTransform, currentDragYRotation);
+            activeDrawer.PlaceItemInSlot(draggedItem, originSlotTransform, currentDragYRotation);
+        }
+        else if (currentDragSource == DragSource.Cabinet && originSlotTransform != null && activeCabinet != null)
+        {
+            activeCabinet.PlaceItemInSlot(draggedItem, originSlotTransform, currentDragYRotation);
         }
 
         ClearDragState();
