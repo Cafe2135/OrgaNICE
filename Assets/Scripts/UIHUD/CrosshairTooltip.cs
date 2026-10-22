@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
+
 public class CrosshairTooltip : MonoBehaviour
 {
     [Header("UI Theme Settings")]
@@ -233,7 +234,7 @@ public class CrosshairTooltip : MonoBehaviour
         tooltipText.fontSize = 17;
         tooltipText.alignment = TextAlignmentOptions.Center;
         tooltipText.color = Color.white;
-        tooltipText.enableWordWrapping = true;
+        tooltipText.textWrappingMode = TextWrappingModes.Normal; 
         tooltipText.raycastTarget = false;
     }
 

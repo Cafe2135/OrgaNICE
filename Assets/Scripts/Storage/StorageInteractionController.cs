@@ -173,7 +173,12 @@ public class StorageInteractionController : MonoBehaviour
             else
             {
                 Ray ray = playerCamera.ScreenPointToRay(Input.mousePosition);
-                if (Physics.Raycast(ray, out RaycastHit hit, 15f))
+
+                // Use RaycastAll so outer drawer or cabinet body meshes do not block item selection
+                RaycastHit[] hits = Physics.RaycastAll(ray, 15f);
+                System.Array.Sort(hits, (x, y) => x.distance.CompareTo(y.distance));
+
+                foreach (var hit in hits)
                 {
                     InteractableItem item = hit.collider.GetComponentInParent<InteractableItem>();
                     if (item != null && item.Size == ItemSize.Small)
@@ -181,19 +186,27 @@ public class StorageInteractionController : MonoBehaviour
                         if (activeDrawer != null)
                         {
                             Transform slot = activeDrawer.GetSlotOfItem(item);
-                            if (slot != null) StartDragFromStorage(slot, item, DragSource.Drawer);
+                            if (slot != null)
+                            {
+                                StartDragFromStorage(slot, item, DragSource.Drawer);
+                                break;
+                            }
                         }
                         else if (activeCabinet != null)
                         {
                             Transform slot = activeCabinet.GetSlotOfItem(item);
-                            if (slot != null) StartDragFromStorage(slot, item, DragSource.Cabinet);
+                            if (slot != null)
+                            {
+                                StartDragFromStorage(slot, item, DragSource.Cabinet);
+                                break;
+                            }
                         }
                     }
                 }
             }
         }
 
-        // 2. WHILE DRAGGING (Supports Tilted Camera View)
+        // 2. WHILE DRAGGING
         if (draggedItem != null)
         {
             if (Input.GetKeyDown(KeyCode.R))
@@ -209,7 +222,7 @@ public class StorageInteractionController : MonoBehaviour
 
             if (activeCabinet != null)
             {
-                // Keeps plane perfectly upright along the cabinet face even when camera tilts down
+                // Upright plane projection parallel to cabinet face for tilted cameras
                 planeNormal = -activeCabinet.transform.forward;
                 if (activeCabinet.SnapSlots.Count > 0 && activeCabinet.SnapSlots[0] != null)
                 {
@@ -281,7 +294,7 @@ public class StorageInteractionController : MonoBehaviour
             targetSlot = activeCabinet.GetClosestFreeSlot(draggedItem.transform.position, maxSnapDistance);
         }
 
-        // If directly over a shelf slot, snap to shelf
+        // If directly aligned with a slot, snap to storage
         if (targetSlot != null)
         {
             if (activeDrawer != null) activeDrawer.PlaceItemInSlot(draggedItem, targetSlot, currentDragYRotation);
@@ -292,7 +305,7 @@ public class StorageInteractionController : MonoBehaviour
             return;
         }
 
-        // 2. If NOT aligned with a shelf slot, check if dropped over Hotbar UI
+        // 2. If NOT aligned with a slot, check if dropped over Hotbar UI to put back into inventory
         if (IsPointerOverInventoryUI())
         {
             if (inventory.Items.Count < 5)
@@ -304,7 +317,7 @@ public class StorageInteractionController : MonoBehaviour
             }
         }
 
-        // 3. Fallback: Return to starting location if released in open space
+        // 3. Fallback: Return to starting origin if dropped in open air
         CancelDrag();
     }
 

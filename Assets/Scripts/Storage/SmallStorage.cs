@@ -4,23 +4,29 @@ using UnityEngine;
 
 public class SmallStorage : MonoBehaviour
 {
-    [Header("Cabinet & Sliding Motion")]
-    [SerializeField] private Transform slidingTransform; // The drawer mesh/transform that slides
-    [SerializeField] private Vector3 slideDirection = Vector3.forward; // Local direction to pull out (e.g. forward or z-axis)
-    [SerializeField] private float slideDistance = 0.55f; // How far out the drawer pulls
-    [SerializeField] private float slideSpeed = 6f; // Speed of opening/closing animation
+    [Header("Drawer Movement Settings")]
+    [Tooltip("The moving drawer mesh transform.")]
+    [SerializeField] private Transform drawerTransform;
 
-    [Header("Camera & Slots")]
+    [Tooltip("Vector direction for sliding (e.g., X: 0, Y: 0, Z: 1 for forward or Z: -1 for backward).")]
+    [SerializeField] private Vector3 slideDirection = new Vector3(0f, 0f, 1f);
+
+    [Tooltip("How far out the drawer slides when opened.")]
+    [SerializeField] private float slideDistance = 0.4f;
+
+    [Tooltip("Speed of the sliding animation.")]
+    [SerializeField] private float slideSpeed = 5f;
+
+    [Header("Camera & Shelf Slots")]
     [SerializeField] private Transform cameraAnchor;
     [SerializeField] private List<Transform> snapSlots = new List<Transform>();
 
-    [Header("References")]
-    [SerializeField] private PlacementZone placementZone;
+    [Header("Scoring System Reference")]
+    [SerializeField] private ScoreDisplay scoreDisplay;
 
     private readonly Dictionary<Transform, InteractableItem> slotOccupants = new Dictionary<Transform, InteractableItem>();
 
     private Vector3 closedLocalPos;
-    private Vector3 openLocalPos;
     private Coroutine slideRoutine;
 
     public Transform CameraAnchor => cameraAnchor;
@@ -29,10 +35,12 @@ public class SmallStorage : MonoBehaviour
 
     void Awake()
     {
-        if (slidingTransform == null) slidingTransform = transform;
+        if (scoreDisplay == null) scoreDisplay = FindFirstObjectByType<ScoreDisplay>();
 
-        closedLocalPos = slidingTransform.localPosition;
-        openLocalPos = closedLocalPos + (slideDirection.normalized * slideDistance);
+        if (drawerTransform != null)
+        {
+            closedLocalPos = drawerTransform.localPosition;
+        }
 
         foreach (var slot in snapSlots)
         {
@@ -41,37 +49,54 @@ public class SmallStorage : MonoBehaviour
                 slotOccupants[slot] = null;
             }
         }
-
-        if (placementZone == null) placementZone = GetComponent<PlacementZone>();
     }
 
     public void OpenDrawer()
     {
+        if (IsOpen) return;
+        if (drawerTransform == null)
+        {
+            Debug.LogError($"[SmallStorage] Drawer Transform is not assigned on {gameObject.name}!");
+            return;
+        }
+
         IsOpen = true;
-        AnimateSlide(openLocalPos);
+
+        // Calculate target open position dynamically using Direction * Distance
+        Vector3 directionNormalized = slideDirection.normalized;
+        if (slideDirection == Vector3.zero) directionNormalized = Vector3.forward;
+
+        Vector3 targetOpenPos = closedLocalPos + (directionNormalized * slideDistance);
+        AnimateDrawer(targetOpenPos);
     }
 
     public void CloseDrawer()
     {
+        if (!IsOpen) return;
+        if (drawerTransform == null) return;
+
         IsOpen = false;
-        AnimateSlide(closedLocalPos);
+        AnimateDrawer(closedLocalPos);
     }
 
-    private void AnimateSlide(Vector3 targetLocalPos)
+    private void AnimateDrawer(Vector3 targetPos)
     {
         if (slideRoutine != null) StopCoroutine(slideRoutine);
-        slideRoutine = StartCoroutine(SlideRoutine(targetLocalPos));
+        slideRoutine = StartCoroutine(SlideRoutine(targetPos));
     }
 
-    private IEnumerator SlideRoutine(Vector3 targetLocalPos)
+    private IEnumerator SlideRoutine(Vector3 targetPos)
     {
-        while (Vector3.Distance(slidingTransform.localPosition, targetLocalPos) > 0.001f)
+        while (Vector3.Distance(drawerTransform.localPosition, targetPos) > 0.001f)
         {
-            slidingTransform.localPosition = Vector3.Lerp(slidingTransform.localPosition, targetLocalPos, Time.deltaTime * slideSpeed);
+            drawerTransform.localPosition = Vector3.Lerp(drawerTransform.localPosition, targetPos, Time.deltaTime * slideSpeed);
             yield return null;
         }
-        slidingTransform.localPosition = targetLocalPos;
+        drawerTransform.localPosition = targetPos;
+        slideRoutine = null;
     }
+
+    // --- Slot & Drag-and-Drop Management ---
 
     public Transform GetClosestFreeSlot(Vector3 worldPoint, float maxDistance = 1.2f)
     {
@@ -102,13 +127,20 @@ public class SmallStorage : MonoBehaviour
         item.LockInStorage();
 
         item.gameObject.SetActive(true);
-        item.transform.SetParent(targetSlot); // Parent item to slot so it moves along when drawer closes!
+        item.transform.SetParent(targetSlot);
         item.transform.position = targetSlot.position;
 
         Quaternion baseFlatRot = item.GetFlatBaseRotation(targetSlot);
         item.transform.rotation = Quaternion.AngleAxis(currentYRotation, targetSlot.up) * baseFlatRot;
 
-        if (item.TryGetComponent(out Collider col)) col.enabled = true;
+        Collider[] colliders = item.GetComponentsInChildren<Collider>();
+        foreach (var col in colliders)
+        {
+            col.enabled = true;
+        }
+
+        ApplyScoreDelta(item, isPlacing: true);
+        UpdateGlobalObjectiveProgress();
 
         return true;
     }
@@ -128,8 +160,55 @@ public class SmallStorage : MonoBehaviour
         if (slot != null) slotOccupants[slot] = null;
         if (item != null)
         {
-            item.transform.SetParent(null); // Unparent when leaving drawer
+            ApplyScoreDelta(item, isPlacing: false);
+
+            item.transform.SetParent(null);
             item.UnlockFromStorage();
+
+            UpdateGlobalObjectiveProgress();
         }
+    }
+
+    private void ApplyScoreDelta(InteractableItem item, bool isPlacing)
+    {
+        if (scoreDisplay == null || item == null) return;
+
+        int points = item.DrawerPlacementPoints;
+        int scoreDelta = 0;
+
+        switch (item.Tag)
+        {
+            case ItemTag.Needed:
+                scoreDelta = isPlacing ? points : -points;
+                break;
+
+            case ItemTag.Trash:
+                scoreDelta = isPlacing ? -points : points;
+                break;
+        }
+
+        if (scoreDelta != 0) scoreDisplay.AddScore(scoreDelta);
+    }
+
+    private void UpdateGlobalObjectiveProgress()
+    {
+        if (LevelObjectiveManager.Instance == null) return;
+
+        int totalCorrectlyPlaced = 0;
+
+        InteractableItem[] allItems = FindObjectsByType<InteractableItem>(FindObjectsSortMode.None);
+        foreach (var item in allItems)
+        {
+            if (item != null && 
+                item.gameObject.activeInHierarchy && 
+                item.Tag == ItemTag.Needed && 
+                item.Size == ItemSize.Small && 
+                item.IsInStorage)
+            {
+                totalCorrectlyPlaced++;
+            }
+        }
+
+        LevelObjectiveManager.Instance.ReportPlacementChange(totalCorrectlyPlaced);
     }
 }
