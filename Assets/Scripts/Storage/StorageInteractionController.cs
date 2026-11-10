@@ -24,8 +24,9 @@ public class StorageInteractionController : MonoBehaviour
     private int originInventoryIndex = -1;
     private Transform originSlotTransform;
     private float currentDragYRotation = 0f;
-    private enum DragSource { None, Inventory, Drawer, Cabinet }
+    private enum DragSource { None, Inventory, Drawer, Cabinet, MovableSurface }
     private DragSource currentDragSource = DragSource.None;
+    private MovableObject activeMovableObject;
 
     public static bool IsInStorageMode { get; private set; } = false;
     public static bool JustExitedStorage { get; private set; } = false;
@@ -173,8 +174,6 @@ public class StorageInteractionController : MonoBehaviour
             else
             {
                 Ray ray = playerCamera.ScreenPointToRay(Input.mousePosition);
-
-                // Use RaycastAll so outer drawer or cabinet body meshes do not block item selection
                 RaycastHit[] hits = Physics.RaycastAll(ray, 15f);
                 System.Array.Sort(hits, (x, y) => x.distance.CompareTo(y.distance));
 
@@ -201,6 +200,19 @@ public class StorageInteractionController : MonoBehaviour
                                 break;
                             }
                         }
+
+                        // Check MovableObject surface slots
+                        MovableObject movable = hit.collider.GetComponentInParent<MovableObject>();
+                        if (movable != null)
+                        {
+                            Transform slot = movable.GetSlotOfItem(item);
+                            if (slot != null)
+                            {
+                                activeMovableObject = movable;
+                                StartDragFromStorage(slot, item, DragSource.MovableSurface);
+                                break;
+                            }
+                        }
                     }
                 }
             }
@@ -222,7 +234,6 @@ public class StorageInteractionController : MonoBehaviour
 
             if (activeCabinet != null)
             {
-                // Upright plane projection parallel to cabinet face for tilted cameras
                 planeNormal = -activeCabinet.transform.forward;
                 if (activeCabinet.SnapSlots.Count > 0 && activeCabinet.SnapSlots[0] != null)
                 {
@@ -273,6 +284,7 @@ public class StorageInteractionController : MonoBehaviour
 
         if (source == DragSource.Drawer && activeDrawer != null) activeDrawer.RemoveItem(item);
         else if (source == DragSource.Cabinet && activeCabinet != null) activeCabinet.RemoveItem(item);
+        else if (source == DragSource.MovableSurface && activeMovableObject != null) activeMovableObject.RemoveItemFromSurface(item);
 
         draggedItem = item;
         if (draggedItem.TryGetComponent(out Collider col)) col.enabled = false;
@@ -281,7 +293,6 @@ public class StorageInteractionController : MonoBehaviour
 
     private void EndDrag()
     {
-        // 1. Check for a nearby shelf slot using a precise 1.2f search threshold
         Transform targetSlot = null;
         float maxSnapDistance = 1.2f;
 
@@ -294,7 +305,7 @@ public class StorageInteractionController : MonoBehaviour
             targetSlot = activeCabinet.GetClosestFreeSlot(draggedItem.transform.position, maxSnapDistance);
         }
 
-        // If directly aligned with a slot, snap to storage
+        // 1. Check Drawer or Cabinet Storage
         if (targetSlot != null)
         {
             if (activeDrawer != null) activeDrawer.PlaceItemInSlot(draggedItem, targetSlot, currentDragYRotation);
@@ -305,7 +316,25 @@ public class StorageInteractionController : MonoBehaviour
             return;
         }
 
-        // 2. If NOT aligned with a slot, check if dropped over Hotbar UI to put back into inventory
+        // 2. Check Movable Object Placement Slots
+        Ray ray = playerCamera.ScreenPointToRay(Input.mousePosition);
+        if (Physics.Raycast(ray, out RaycastHit hit, 15f))
+        {
+            MovableObject movable = hit.collider.GetComponentInParent<MovableObject>();
+            if (movable != null)
+            {
+                Transform surfaceSlot = movable.GetClosestFreeSlot(draggedItem.transform.position, 1.0f);
+                if (surfaceSlot != null)
+                {
+                    movable.PlaceItemOnSurface(draggedItem, surfaceSlot);
+                    ClearDragState();
+                    UpdateInventoryVisuals(true);
+                    return;
+                }
+            }
+        }
+
+        // 3. Return to Inventory if over UI
         if (IsPointerOverInventoryUI())
         {
             if (inventory.Items.Count < 5)
@@ -317,7 +346,7 @@ public class StorageInteractionController : MonoBehaviour
             }
         }
 
-        // 3. Fallback: Return to starting origin if dropped in open air
+        // 4. Fallback: Return to origin
         CancelDrag();
     }
 
@@ -339,6 +368,10 @@ public class StorageInteractionController : MonoBehaviour
         {
             activeCabinet.PlaceItemInSlot(draggedItem, originSlotTransform, currentDragYRotation);
         }
+        else if (currentDragSource == DragSource.MovableSurface && originSlotTransform != null && activeMovableObject != null)
+        {
+            activeMovableObject.PlaceItemOnSurface(draggedItem, originSlotTransform);
+        }
 
         ClearDragState();
         UpdateInventoryVisuals(true);
@@ -349,6 +382,7 @@ public class StorageInteractionController : MonoBehaviour
         draggedItem = null;
         originInventoryIndex = -1;
         originSlotTransform = null;
+        activeMovableObject = null;
         currentDragSource = DragSource.None;
     }
 
