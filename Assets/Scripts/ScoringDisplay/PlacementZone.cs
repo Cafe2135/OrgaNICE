@@ -1,119 +1,274 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public enum ZoneType { Table, Drawer }
-
+[RequireComponent(typeof(Collider))]
 public class PlacementZone : MonoBehaviour
 {
+    [Header("Zone Validation Rules")]
+    [SerializeField] private bool allowSmallItems = true;
+    [SerializeField] private bool allowLargeItems = true;
+    [SerializeField] private bool requireMatchingTag = true;
+    [SerializeField] private ItemTag requiredTag = ItemTag.Needed;
+
+    [Header("Surface Snap Alignment")]
+    [SerializeField] private bool snapToSurfaceHeight = true;
+    [SerializeField] private float surfaceYOffset = 0.005f;
+
+    [Header("Optional Scoring Reference")]
     [SerializeField] private ScoreDisplay scoreDisplay;
-    [SerializeField] private ZoneType zoneType = ZoneType.Table;
+    [SerializeField] private bool awardScoreOnPlace = true;
 
-    private readonly List<InteractableItem> itemsInZone = new List<InteractableItem>();
-    private int currentZoneScore = 0;
+    [Header("Diagnostics")]
+    [SerializeField] private bool enableDebugLogs = true;
 
-    public ZoneType CurrentZoneType => zoneType;
+    private readonly List<InteractableItem> placedItems = new List<InteractableItem>();
+
+    void Awake()
+    {
+        if (scoreDisplay == null)
+        {
+            scoreDisplay = FindFirstObjectByType<ScoreDisplay>(FindObjectsInactive.Include);
+        }
+
+        Collider col = GetComponent<Collider>();
+        if (col != null)
+        {
+            col.isTrigger = true;
+        }
+        else if (enableDebugLogs)
+        {
+            Debug.LogError($"[PlacementZone:{name}] Missing Collider component!");
+        }
+    }
 
     void Update()
     {
-        CleanupAndRecalculate();
+        for (int i = placedItems.Count - 1; i >= 0; i--)
+        {
+            InteractableItem item = placedItems[i];
+            if (item == null || !item.gameObject.activeInHierarchy || item.transform.parent != transform)
+            {
+                ReleaseItemAtIndex(i);
+            }
+        }
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        InteractableItem item = other.GetComponentInParent<InteractableItem>();
-        if (item != null && !itemsInZone.Contains(item))
-        {
-            itemsInZone.Add(item);
-            RecalculateScore();
-        }
+        TryCaptureItem(other, logRejection: enableDebugLogs);
+    }
+
+    private void OnTriggerStay(Collider other)
+    {
+        TryCaptureItem(other, logRejection: false);
     }
 
     private void OnTriggerExit(Collider other)
     {
         InteractableItem item = other.GetComponentInParent<InteractableItem>();
-        if (item != null && itemsInZone.Contains(item))
+        if (item != null && placedItems.Contains(item))
         {
-            itemsInZone.Remove(item);
-            RecalculateScore();
+            ReleaseItem(item);
         }
-    }
-
-    private void CleanupAndRecalculate()
-    {
-        bool changed = false;
-        for (int i = itemsInZone.Count - 1; i >= 0; i--)
-        {
-            if (itemsInZone[i] == null || !itemsInZone[i].gameObject.activeInHierarchy)
-            {
-                itemsInZone.RemoveAt(i);
-                changed = true;
-            }
-        }
-
-        if (changed) RecalculateScore();
     }
 
     /// <summary>
-    /// Validates if an item is placed in its intended zone based on size and storage state.
+    /// Cleanly removes an item from this PlacementZone, deducts points, and unparents it.
     /// </summary>
-    public bool IsItemInCorrectZone(InteractableItem item)
+    public void ReleaseItem(InteractableItem item)
     {
-        if (item == null || !item.gameObject.activeInHierarchy) return false;
+        if (item == null) return;
 
-        if (zoneType == ZoneType.Drawer)
+        int index = placedItems.IndexOf(item);
+        if (index != -1)
         {
-            // Small items MUST be in a drawer and snapped into storage
-            return item.Size == ItemSize.Small && item.IsInStorage;
+            ReleaseItemAtIndex(index);
         }
-        else if (zoneType == ZoneType.Table)
+        else if (item.transform.parent == transform)
         {
-            // Large items MUST be placed on surface/table placement zones
-            return item.Size == ItemSize.Large;
+            item.transform.SetParent(null);
+        }
+    }
+
+    private void ReleaseItemAtIndex(int index)
+    {
+        InteractableItem item = placedItems[index];
+        placedItems.RemoveAt(index);
+
+        if (item != null)
+        {
+            if (item.transform.parent == transform)
+            {
+                item.transform.SetParent(null);
+            }
+
+            if (enableDebugLogs)
+            {
+                Debug.Log($"[PlacementZone:{name}] Item '{item.ItemName}' removed from zone.");
+            }
+
+            ApplyScore(item, isPlacing: false);
+
+            if (item.gameObject.activeInHierarchy && item.transform.parent == null && !item.IsInStorage)
+            {
+                if (item.TryGetComponent(out Rigidbody rb))
+                {
+                    rb.isKinematic = false;
+                    rb.useGravity = true;
+                }
+            }
+        }
+
+        UpdateGlobalObjectiveProgress();
+    }
+
+    private void TryCaptureItem(Collider other, bool logRejection)
+    {
+        InteractableItem item = other.GetComponentInParent<InteractableItem>();
+        if (item == null) return;
+        if (placedItems.Contains(item)) return;
+
+        if (item.IsInStorage)
+        {
+            if (logRejection)
+                Debug.Log($"[PlacementZone:{name}] Rejected '{item.ItemName}' — item.IsInStorage is true.");
+            return;
+        }
+
+        if (item.Size == ItemSize.Small && !allowSmallItems)
+        {
+            if (logRejection)
+                Debug.Log($"[PlacementZone:{name}] Rejected '{item.ItemName}' — Small items are disabled on this zone.");
+            return;
+        }
+
+        if (item.Size == ItemSize.Large && !allowLargeItems)
+        {
+            if (logRejection)
+                Debug.Log($"[PlacementZone:{name}] Rejected '{item.ItemName}' — Large items are disabled on this zone.");
+            return;
+        }
+
+        // Ignore items still actively held by the player
+        if (IsItemHeldByPlayer(item))
+        {
+            if (logRejection)
+                Debug.Log($"[PlacementZone:{name}] Waiting on '{item.ItemName}' — still held by player.");
+            return;
+        }
+
+        // Ignore items already claimed by a different PlacementZone
+        PlacementZone existingZone = item.GetComponentInParent<PlacementZone>();
+        if (existingZone != null && existingZone != this) return;
+
+        StickItemToSurface(item);
+    }
+
+    private bool IsItemHeldByPlayer(InteractableItem item)
+    {
+        if (item.TryGetComponent(out Rigidbody rb) && rb.isKinematic)
+        {
+            return true;
+        }
+
+        if (item.GetComponentInParent<Camera>() != null || item.GetComponentInParent<CharacterController>() != null)
+        {
+            return true;
         }
 
         return false;
     }
 
-    private void RecalculateScore()
+    private void StickItemToSurface(InteractableItem item)
     {
-        int newScore = 0;
+        placedItems.Add(item);
 
-        foreach (var item in itemsInZone)
+        MovableObject.NotifyItemPickedUp(item);
+
+        if (item.TryGetComponent(out Rigidbody rb))
         {
-            if (item == null || !item.gameObject.activeInHierarchy) continue;
-
-            int basePoints = (zoneType == ZoneType.Table) ? item.TablePlacementPoints : item.DrawerPlacementPoints;
-
-            switch (item.Tag)
+            if (!rb.isKinematic)
             {
-                case ItemTag.Needed:
-                    // Only award points if placed in the correct size matching zone
-                    if (IsItemInCorrectZone(item))
-                    {
-                        newScore += basePoints;
-                    }
-                    break;
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+            }
+            rb.isKinematic = true;
+            rb.useGravity = false;
+        }
 
-                case ItemTag.Trash:
-                    // Deduct points for leaving trash on surfaces or inside drawers
-                    newScore -= basePoints;
-                    break;
+        if (snapToSurfaceHeight)
+        {
+            AlignItemToSurface(item);
+        }
 
-                case ItemTag.Neutral:
-                    break;
+        item.transform.SetParent(transform);
+
+        Collider[] colliders = item.GetComponentsInChildren<Collider>();
+        foreach (var col in colliders)
+        {
+            col.enabled = true;
+        }
+
+        ApplyScore(item, isPlacing: true);
+        UpdateGlobalObjectiveProgress();
+    }
+
+    private void AlignItemToSurface(InteractableItem item)
+    {
+        Collider itemCol = item.GetComponentInChildren<Collider>();
+        if (itemCol == null) return;
+
+        float pivotToBottom = item.transform.position.y - itemCol.bounds.min.y;
+        Vector3 rayOrigin = new Vector3(item.transform.position.x, itemCol.bounds.max.y + 0.3f, item.transform.position.z);
+
+        if (Physics.Raycast(rayOrigin, Vector3.down, out RaycastHit hit, 1.5f, ~0, QueryTriggerInteraction.Ignore))
+        {
+            if (!hit.collider.transform.IsChildOf(item.transform))
+            {
+                Vector3 snappedPos = item.transform.position;
+                snappedPos.y = hit.point.y + pivotToBottom + surfaceYOffset;
+                item.transform.position = snappedPos;
             }
         }
+    }
 
-        int scoreDelta = newScore - currentZoneScore;
-        currentZoneScore = newScore;
+    public bool IsItemInCorrectZone(InteractableItem item)
+    {
+        if (item == null || !placedItems.Contains(item)) return false;
+        if (item.Size == ItemSize.Small && !allowSmallItems) return false;
+        if (item.Size == ItemSize.Large && !allowLargeItems) return false;
+        if (requireMatchingTag && item.Tag != requiredTag) return false;
 
-        if (scoreDisplay != null && scoreDelta != 0)
+        return true;
+    }
+
+    private void ApplyScore(InteractableItem item, bool isPlacing)
+    {
+        if (!awardScoreOnPlace || item == null) return;
+
+        if (scoreDisplay == null)
         {
-            scoreDisplay.AddScore(scoreDelta);
+            scoreDisplay = FindFirstObjectByType<ScoreDisplay>(FindObjectsInactive.Include);
+            if (scoreDisplay == null) return;
         }
 
-        // Recalculate total valid placements across all zones in the level for Star 2
-        UpdateGlobalObjectiveProgress();
+        int delta = 0;
+
+        if (item.Tag == ItemTag.Needed)
+        {
+            delta = isPlacing ? item.TablePlacementPoints : -item.TablePlacementPoints;
+        }
+        else if (item.Tag == ItemTag.Trash)
+        {
+            delta = isPlacing ? -item.TrashPoints : item.TrashPoints;
+        }
+
+        if (delta != 0)
+        {
+            scoreDisplay.AddScore(delta);
+            if (enableDebugLogs)
+                Debug.Log($"[PlacementZone:{name}] {(delta > 0 ? "Added" : "Removed")} {Mathf.Abs(delta)} score for '{item.ItemName}' (Tag: {item.Tag}).");
+        }
     }
 
     private void UpdateGlobalObjectiveProgress()
@@ -122,17 +277,24 @@ public class PlacementZone : MonoBehaviour
 
         int totalCorrectlyPlaced = 0;
         PlacementZone[] allZones = FindObjectsByType<PlacementZone>(FindObjectsSortMode.None);
+        InteractableItem[] allItems = FindObjectsByType<InteractableItem>(FindObjectsSortMode.None);
 
-        foreach (var zone in allZones)
+        foreach (var item in allItems)
         {
-            foreach (var item in zone.itemsInZone)
+            if (item == null || !item.gameObject.activeInHierarchy || item.Tag != ItemTag.Needed) continue;
+
+            if (item.IsInStorage)
             {
-                if (item != null && item.gameObject.activeInHierarchy && item.Tag == ItemTag.Needed)
+                totalCorrectlyPlaced++;
+                continue;
+            }
+
+            foreach (var zone in allZones)
+            {
+                if (zone != null && zone.IsItemInCorrectZone(item))
                 {
-                    if (zone.IsItemInCorrectZone(item))
-                    {
-                        totalCorrectlyPlaced++;
-                    }
+                    totalCorrectlyPlaced++;
+                    break;
                 }
             }
         }

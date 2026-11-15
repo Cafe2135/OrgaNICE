@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody))]
@@ -7,135 +5,104 @@ public class MovableObject : MonoBehaviour
 {
     [SerializeField] private string objectName = "Ironing Board";
     [SerializeField] private float dragFollowSpeed = 12f;
-
-    [Header("Placement Surface Slots")]
-    [Tooltip("Child Empty GameObjects positioned on top of the surface as snap points.")]
-    [SerializeField] private List<Transform> surfaceSlots = new List<Transform>();
+    [SerializeField] private bool enableDebugLogs = true;
 
     private Rigidbody rb;
-    private readonly Dictionary<Transform, InteractableItem> slotOccupants = new Dictionary<Transform, InteractableItem>();
 
     public string ObjectName => objectName;
     public float DragFollowSpeed => dragFollowSpeed;
     public Rigidbody Rb => rb;
-    public List<Transform> SurfaceSlots => surfaceSlots;
 
     void Awake()
     {
         rb = GetComponent<Rigidbody>();
         rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
         rb.useGravity = true;
+        rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
 
-        foreach (var slot in surfaceSlots)
+        // Unity ignores non-convex MeshColliders on moving Rigidbodies.
+        // Force Convex = true on solid colliders so picked-up items can physically rest on top.
+        MeshCollider[] meshColliders = GetComponentsInChildren<MeshCollider>();
+        foreach (var meshCol in meshColliders)
         {
-            if (slot != null && !slotOccupants.ContainsKey(slot))
+            if (meshCol != null && !meshCol.isTrigger && !meshCol.convex)
             {
-                slotOccupants[slot] = null;
+                meshCol.convex = true;
             }
         }
     }
 
     void Start()
     {
-        IgnoreItemCollisions();
+        IgnoreAllItemCollisionsAtStart();
     }
 
-    // Ignores collisions with all small/large interactable items in the scene
-    public void IgnoreItemCollisions()
+    /// <summary>
+    /// At game start, ignores collisions with all items so items hidden underneath/behind
+    /// this movable object do not cause physics explosions or get pushed prematurely.
+    /// </summary>
+    public void IgnoreAllItemCollisionsAtStart()
     {
-        Collider[] myColliders = GetComponentsInChildren<Collider>();
         InteractableItem[] items = FindObjectsByType<InteractableItem>(FindObjectsSortMode.None);
+        int count = 0;
 
         foreach (var item in items)
         {
-            Collider[] itemColliders = item.GetComponentsInChildren<Collider>();
-            foreach (var myCol in myColliders)
+            if (item != null)
             {
-                foreach (var itemCol in itemColliders)
-                {
-                    if (myCol != null && itemCol != null)
-                    {
-                        Physics.IgnoreCollision(myCol, itemCol, true);
-                    }
-                }
-            }
-        }
-    }
-
-    public Transform GetClosestFreeSlot(Vector3 worldPoint, float maxDistance = 1.0f)
-    {
-        Transform bestSlot = null;
-        float minDistance = maxDistance;
-
-        foreach (var slot in surfaceSlots)
-        {
-            if (slot == null || slotOccupants[slot] != null) continue;
-
-            float dist = Vector3.Distance(worldPoint, slot.position);
-            if (dist < minDistance)
-            {
-                minDistance = dist;
-                bestSlot = slot;
+                SetCollisionIgnoredWithItem(item, true);
+                count++;
             }
         }
 
-        return bestSlot;
+        if (enableDebugLogs)
+        {
+            Debug.Log($"[MovableObject:{objectName}] Ignored start collisions with {count} items in scene.");
+        }
     }
 
-    public bool PlaceItemOnSurface(InteractableItem item, Transform targetSlot)
+    /// <summary>
+    /// Enables or disables physics collision between this MovableObject and a specific InteractableItem.
+    /// </summary>
+    public void SetCollisionIgnoredWithItem(InteractableItem item, bool ignore)
     {
-        if (item == null || targetSlot == null || !surfaceSlots.Contains(targetSlot) || slotOccupants[targetSlot] != null)
-            return false;
+        if (item == null) return;
 
-        slotOccupants[targetSlot] = item;
-        item.LockInStorage();
+        Collider[] myColliders = GetComponentsInChildren<Collider>();
+        Collider[] itemColliders = item.GetComponentsInChildren<Collider>();
 
-        item.gameObject.SetActive(true);
-        item.transform.SetParent(targetSlot);
-        item.transform.position = targetSlot.position;
-        item.transform.rotation = targetSlot.rotation;
-
-        // Freeze item physics so gravity doesn't pull it through the non-colliding table mesh
-        if (item.TryGetComponent(out Rigidbody itemRb))
+        foreach (var myCol in myColliders)
         {
-            itemRb.isKinematic = true;
-            itemRb.useGravity = false;
-        }
+            if (myCol == null || myCol.isTrigger) continue;
 
-        // Keep colliders enabled for mouse interaction and retrieval
-        Collider[] colliders = item.GetComponentsInChildren<Collider>();
-        foreach (var col in colliders)
-        {
-            col.enabled = true;
-        }
-
-        return true;
-    }
-
-    public void RemoveItemFromSurface(InteractableItem item)
-    {
-        Transform slot = GetSlotOfItem(item);
-        if (slot != null) slotOccupants[slot] = null;
-
-        if (item != null)
-        {
-            item.transform.SetParent(null);
-            item.UnlockFromStorage();
-
-            if (item.TryGetComponent(out Rigidbody itemRb))
+            foreach (var itemCol in itemColliders)
             {
-                itemRb.isKinematic = false;
-                itemRb.useGravity = true;
+                if (itemCol == null || itemCol.isTrigger) continue;
+                Physics.IgnoreCollision(myCol, itemCol, ignore);
             }
         }
+
+        if (enableDebugLogs && !ignore)
+        {
+            Debug.Log($"[MovableObject:{objectName}] Re-enabled solid collisions with '{item.ItemName}'.");
+        }
     }
 
-    public Transform GetSlotOfItem(InteractableItem item)
+    /// <summary>
+    /// Call this once when the player picks up/discovers an item.
+    /// Restores solid collisions between that item and ALL MovableObjects in the scene.
+    /// </summary>
+    public static void NotifyItemPickedUp(InteractableItem item)
     {
-        foreach (var pair in slotOccupants)
+        if (item == null) return;
+
+        MovableObject[] allMovables = FindObjectsByType<MovableObject>(FindObjectsSortMode.None);
+        foreach (var movable in allMovables)
         {
-            if (pair.Value == item) return pair.Key;
+            if (movable != null)
+            {
+                movable.SetCollisionIgnoredWithItem(item, false);
+            }
         }
-        return null;
     }
 }

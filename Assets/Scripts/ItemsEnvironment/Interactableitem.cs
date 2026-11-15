@@ -35,23 +35,38 @@ public class InteractableItem : MonoBehaviour
 
     void Start()
     {
+        // Ignore solid collisions at start so items hidden under/behind furniture don't jitter or flip objects
         IgnoreHeavyObjectCollisions();
     }
 
-    // Ignores collisions with heavy furniture/ironing boards
     public void IgnoreHeavyObjectCollisions()
+    {
+        SetHeavyObjectCollisionsIgnored(true);
+    }
+
+    public void RestoreHeavyObjectCollisions()
+    {
+        SetHeavyObjectCollisionsIgnored(false);
+    }
+
+    private void SetHeavyObjectCollisionsIgnored(bool ignore)
     {
         Collider[] myColliders = GetComponentsInChildren<Collider>();
         MovableObject[] heavyObjects = FindObjectsByType<MovableObject>(FindObjectsSortMode.None);
 
         foreach (var heavy in heavyObjects)
         {
+            if (heavy == null) continue;
+
             Collider[] heavyColliders = heavy.GetComponentsInChildren<Collider>();
             foreach (var myCol in myColliders)
             {
+                if (myCol == null || myCol.isTrigger) continue;
+
                 foreach (var heavyCol in heavyColliders)
                 {
-                    Physics.IgnoreCollision(myCol, heavyCol, true);
+                    if (heavyCol == null || heavyCol.isTrigger) continue;
+                    Physics.IgnoreCollision(myCol, heavyCol, ignore);
                 }
             }
         }
@@ -76,6 +91,8 @@ public class InteractableItem : MonoBehaviour
         if (!HasBeenDiscovered)
         {
             HasBeenDiscovered = true;
+            RestoreHeavyObjectCollisions();
+
             if (itemTag == ItemTag.Needed && LevelObjectiveManager.Instance != null)
             {
                 LevelObjectiveManager.Instance.ReportNeededItemDiscovered();
@@ -85,6 +102,7 @@ public class InteractableItem : MonoBehaviour
 
     public void LockInStorage()
     {
+        DetachFromPlacementZone();
         IsInStorage = true;
         if (TryGetComponent(out Rigidbody rb))
         {
@@ -108,12 +126,29 @@ public class InteractableItem : MonoBehaviour
     {
         if (IsInStorage) return;
 
+        // Release from any PlacementZone before deactivating so it can snap again when dropped later
+        DetachFromPlacementZone();
+
         MarkDiscovered();
+        RestoreHeavyObjectCollisions();
         UnlockFromStorage();
 
         if (inventory.AddItem(itemName, description, icon, itemTag, gameObject))
         {
             gameObject.SetActive(false);
+        }
+    }
+
+    public void DetachFromPlacementZone()
+    {
+        PlacementZone currentZone = GetComponentInParent<PlacementZone>();
+        if (currentZone != null)
+        {
+            currentZone.ReleaseItem(this);
+        }
+        else if (transform.parent != null && transform.parent.GetComponent<PlacementZone>() != null)
+        {
+            transform.SetParent(null);
         }
     }
 }
